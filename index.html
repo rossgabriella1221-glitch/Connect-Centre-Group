@@ -19,14 +19,14 @@
       <h1 id="auth-title">Sign in to VoiceQA</h1>
       <p id="auth-copy">Use the single owner account to access evaluations.</p>
       <form id="auth-form">
-        <label>Email address<input id="auth-email" type="email" autocomplete="email" required /></label>
+        <label>User ID<input id="auth-user-id" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]+" placeholder="e.g. harris" required /></label>
         <label>Password<input id="auth-password" type="password" autocomplete="current-password" minlength="8" required /></label>
         <label class="hidden" id="setup-key-label">Existing dashboard key<input id="setup-key" type="password" autocomplete="off" /></label>
         <button class="primary-button" id="auth-submit" type="submit"><span>Sign in</span><b>→</b></button>
       </form>
       <p class="auth-message" id="auth-message"></p>
       <button class="auth-switch hidden" id="auth-switch" type="button">Set up the owner account</button>
-      <small class="privacy-note">Your session stays in this browser tab. VoiceQA allows one owner account only.</small>
+      <small class="privacy-note">Use 3–32 letters, numbers, dots, underscores or hyphens. VoiceQA allows one owner account only.</small>
     </div>
   </section>
   <aside class="sidebar">
