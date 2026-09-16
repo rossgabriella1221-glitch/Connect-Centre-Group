@@ -14,7 +14,7 @@ A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation s
 
 Copy `.env.example` to `.env.local` and configure:
 
-- `OPENAI_API_KEY` for transcription, translation and evaluation.
+- `GROQ_API_KEY` for transcription, translation and evaluation.
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for saving evaluations.
 - `QA_ACCESS_KEY` for protecting transcription and evaluation endpoints.
 
