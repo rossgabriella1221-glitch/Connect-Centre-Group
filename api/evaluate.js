@@ -17,11 +17,15 @@ export default async function handler(request, response) {
     const schema = {
       type: "object",
       additionalProperties: false,
-      required: ["detected_language", "english_transcript", "summary", "results"],
+      required: ["detected_language", "english_transcript", "summary", "compliment_detected", "compliment_summary", "compliment_line_numbers", "rude_line_numbers", "results"],
       properties: {
         detected_language: { type: "string" },
         english_transcript: { type: "string" },
         summary: { type: "string" },
+        compliment_detected: { type: "boolean" },
+        compliment_summary: { type: "string" },
+        compliment_line_numbers: { type: "array", maxItems: 6, items: { type: "integer" } },
+        rude_line_numbers: { type: "array", maxItems: 30, items: { type: "integer" } },
         results: {
           type: "array",
           minItems: flatRubric.length,
@@ -53,6 +57,7 @@ export default async function handler(request, response) {
     const scoringPayload = await scoringResponse.json();
     const parsed = parseScorecard(scoringPayload.choices?.[0]?.message?.content);
     validateScorecard(parsed);
+    normalizeTranscriptHighlights(parsed);
     const evaluation = calculate(parsed.results);
     console.log("[api/evaluate] scoring completed", { score: evaluation.score, max: evaluation.max });
     return response.status(200).json({ transcript, ...parsed, ...evaluation, created_at: new Date().toISOString() });
@@ -63,7 +68,7 @@ export default async function handler(request, response) {
 }
 
 async function requestScorecard(transcript, schema, strict) {
-  const system = "You are a strict contact-centre QA evaluator. Translate the transcript to English when necessary. The english_transcript must preserve the complete conversation from the first through the final utterance: never summarize, omit, shorten, merge, reorder, or invent speech. Format every utterance on its own line beginning exactly 'Agent - ' or 'Caller - ', with one blank line between every speaker turn. Infer roles carefully from greetings, requests, questions, and responses; do not mechanically alternate labels. Recheck the final portion of the transcript before answering to ensure the closing dialogue is complete and correctly attributed. Evaluate only observable evidence. Return exactly one result for every rubric item, in the supplied order, using its exact id. Use score strings 0 or 5 for standard checks, 1 or 5 for documentation checks, 1 through 5 for ratings, and na only when an na-type check genuinely did not occur. Keep comments and evidence concise. For unavailable CRM-only evidence, score 1 and explain that manual verification is required. Return one valid JSON object only.";
+  const system = "You are a strict contact-centre QA evaluator. Translate the transcript to English when necessary. The english_transcript must preserve the complete conversation from the first through the final utterance: never summarize, omit, shorten, merge, reorder, or invent speech. Format every utterance on its own line beginning exactly 'Agent - ' or 'Caller - ', with one blank line between every speaker turn. Infer roles carefully from greetings, requests, questions, and responses; do not mechanically alternate labels. Recheck the final portion of the transcript before answering to ensure the closing dialogue is complete and correctly attributed. Number the nonblank speaker turns in english_transcript mentally from 1. If the caller gives genuine praise, thanks, or positive feedback about the agent or service, set compliment_detected true, write one short compliment_summary, and return at least three consecutive turn numbers around the compliment in compliment_line_numbers. Otherwise return false, an empty summary, and an empty array. Put only turns containing insulting, abusive, threatening, discriminatory, or clearly disrespectful language in rude_line_numbers; ordinary frustration or complaints are not automatically rude. Evaluate only observable evidence. Return exactly one result for every rubric item, in the supplied order, using its exact id. Use score strings 0 or 5 for standard checks, 1 or 5 for documentation checks, 1 through 5 for ratings, and na only when an na-type check genuinely did not occur. Keep comments and evidence concise. For unavailable CRM-only evidence, score 1 and explain that manual verification is required. Return one valid JSON object only.";
   return fetch(`${GROQ_API_URL}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
@@ -90,6 +95,23 @@ function validateScorecard(parsed) {
     throw new Error("The evaluation returned an incomplete scorecard. Please try again.");
   }
   if (!parsed.detected_language || !parsed.english_transcript || !parsed.summary) throw new Error("The evaluation returned incomplete call details. Please try again.");
+}
+
+function normalizeTranscriptHighlights(parsed) {
+  const turns = String(parsed.english_transcript || "").split(/\n+/).map(line => line.trim()).filter(Boolean);
+  const validNumbers = values => [...new Set((Array.isArray(values) ? values : []).map(Number).filter(value => Number.isInteger(value) && value >= 1 && value <= turns.length))];
+  parsed.rude_line_numbers = validNumbers(parsed.rude_line_numbers);
+  parsed.compliment_line_numbers = validNumbers(parsed.compliment_line_numbers);
+  if (!parsed.compliment_detected) {
+    parsed.compliment_summary = "";
+    parsed.compliment_line_numbers = [];
+    return;
+  }
+  if (parsed.compliment_line_numbers.length && parsed.compliment_line_numbers.length < 3 && turns.length >= 3) {
+    const focus = parsed.compliment_line_numbers[0] - 1;
+    const start = Math.max(0, Math.min(focus - 1, turns.length - 3));
+    parsed.compliment_line_numbers = [start + 1, start + 2, start + 3];
+  }
 }
 
 async function providerFailure(providerResponse) {
