@@ -11,7 +11,24 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body>
+<body class="auth-locked">
+  <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
+    <div class="auth-card">
+      <span class="brand-mark">VQ</span>
+      <p class="eyebrow">SECURE QUALITY OPERATIONS</p>
+      <h1 id="auth-title">Sign in to VoiceQA</h1>
+      <p id="auth-copy">Use the single owner account to access evaluations.</p>
+      <form id="auth-form">
+        <label>Email address<input id="auth-email" type="email" autocomplete="email" required /></label>
+        <label>Password<input id="auth-password" type="password" autocomplete="current-password" minlength="8" required /></label>
+        <label class="hidden" id="setup-key-label">Existing dashboard key<input id="setup-key" type="password" autocomplete="off" /></label>
+        <button class="primary-button" id="auth-submit" type="submit"><span>Sign in</span><b>→</b></button>
+      </form>
+      <p class="auth-message" id="auth-message"></p>
+      <button class="auth-switch hidden" id="auth-switch" type="button">Set up the owner account</button>
+      <small class="privacy-note">Your session stays in this browser tab. VoiceQA allows one owner account only.</small>
+    </div>
+  </section>
   <aside class="sidebar">
     <a class="brand" href="#" aria-label="VoiceQA home"><span class="brand-mark">VQ</span><span>VoiceQA</span></a>
     <nav aria-label="Main navigation">
@@ -20,7 +37,7 @@
       <button class="nav-item" data-view="rubric"><span>✓</span> QA rubric</button>
       <button class="nav-item" data-view="settings"><span>⚙</span> Settings</button>
     </nav>
-    <div class="sidebar-foot"><div class="avatar">HR</div><div><strong>Harris Ross</strong><span>Quality manager</span></div></div>
+    <div class="sidebar-foot"><div class="avatar" id="user-avatar">QA</div><div><strong id="user-name">Signed in</strong><span>Quality user</span></div></div>
   </aside>
 
   <main>
@@ -73,7 +90,7 @@
 
     <section id="history-view" class="view"><div class="panel"><div class="panel-head"><div><h2>Evaluation history</h2><p>Saved calls from Supabase</p></div><button class="secondary-button" id="refresh-history">Refresh</button></div><div class="table-wrap"><table><thead><tr><th>Agent</th><th>Campaign</th><th>Transaction</th><th>Score</th><th>Status</th><th>Date</th></tr></thead><tbody id="history-body"><tr><td colspan="6" class="empty-cell">No evaluations loaded yet.</td></tr></tbody></table></div></div></section>
     <section id="rubric-view" class="view"><div class="rubric-intro"><p class="eyebrow">SOURCE: QM EXCEL.XLSX</p><h2>Exact workbook scoring sequence</h2><p>Every check retains its original section, order, five-point maximum and reverse-scoring behavior.</p></div><div id="rubric-list" class="rubric-list"></div></section>
-    <section id="settings-view" class="view"><div class="settings-grid"><div class="panel"><h2>Connections</h2><div class="connection"><span class="connection-icon github">GH</span><div><strong>GitHub</strong><small>Source and version control</small></div><span class="connected">Connected</span></div><div class="connection"><span class="connection-icon supabase">S</span><div><strong>Supabase</strong><small>Database and recording storage</small></div><span class="connected">Connected</span></div><div class="connection"><span class="connection-icon vercel">▲</span><div><strong>Vercel</strong><small>Hosting and server functions</small></div><span class="connected">Connected</span></div><label class="access-key">Dashboard access key<input id="access-key" type="password" autocomplete="current-password" placeholder="Enter access key" /><small>Kept only for this browser session.</small></label></div><div class="panel"><h2>Evaluation rules</h2><label class="setting-row"><span><strong>Auto-detect language</strong><small>Translate non-English calls before scoring</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Require evidence</strong><small>Show transcript support for every answer</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Flag critical misses</strong><small>Highlight starred workbook questions</small></span><input type="checkbox" checked /></label></div></div></section>
+    <section id="settings-view" class="view"><div class="settings-grid"><div class="panel"><h2>Connections</h2><div class="connection"><span class="connection-icon github">GH</span><div><strong>GitHub</strong><small>Source and version control</small></div><span class="connected">Connected</span></div><div class="connection"><span class="connection-icon supabase">S</span><div><strong>Supabase</strong><small>Database and secure user accounts</small></div><span class="connected">Connected</span></div><div class="connection"><span class="connection-icon vercel">▲</span><div><strong>Vercel</strong><small>Hosting and server functions</small></div><span class="connected">Connected</span></div></div><div class="panel"><h2>Your account</h2><div class="account-card"><span class="connection-icon">✓</span><div><strong id="settings-user-email">Signed in</strong><small>Only your evaluations are visible to this account.</small></div></div><button class="secondary-button sign-out-button" id="sign-out" type="button">Sign out</button><p class="security-copy">Audio is processed temporarily and is not saved by VoiceQA. Transcripts are stored only when you select Save evaluation.</p></div><div class="panel"><h2>Evaluation rules</h2><label class="setting-row"><span><strong>Auto-detect language</strong><small>Translate non-English calls before scoring</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Require evidence</strong><small>Show transcript support for every answer</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Flag critical misses</strong><small>Highlight starred workbook questions</small></span><input type="checkbox" checked /></label></div></div></section>
   </main>
 
   <dialog id="help-dialog"><button class="dialog-close" id="help-close">×</button><p class="eyebrow">HOW IT WORKS</p><h2>Evaluate a call in four exact steps</h2><ol><li>Upload one voice recording.</li><li>Confirm the call and agent details.</li><li>VoiceQA transcribes, translates and scores all 30 checks in PDF order.</li><li>Review evidence, adjust any manual checks, and save the result.</li></ol><p>N/A items are excluded from the available maximum, matching the evaluation sample.</p></dialog>
