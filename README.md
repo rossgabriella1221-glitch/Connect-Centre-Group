@@ -43,3 +43,4 @@ Run `npm test` to verify the workbook scoring model. Deploy the repository to Ve
 - CRM-only checks are marked for manual verification when the call recording cannot establish them.
 - The Calm Modern dashboard summarizes average QA, pass rate, recent evaluations and quality trends.
 - After an evaluation is saved, the new-evaluation form resets automatically for the next call.
+- Evaluation History includes an owner-only Delete action with confirmation for removing accidental duplicate entries.
