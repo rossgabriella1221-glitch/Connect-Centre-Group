@@ -14,6 +14,8 @@ The speaker transcript is editable: click a speaker label to switch between Agen
 
 Every QA item score is editable before saving. Manual changes immediately recalculate the section total, overall score, available maximum and percentage while keeping the allowed values for that rubric item.
 
+The visible scorecard shows only each rubric question and its editable score. AI comments and transcript evidence are retained in the evaluation data but hidden from the scorecard.
+
 If Groq cannot satisfy the strict JSON scorecard schema on the first attempt, VoiceQA automatically retries once with deterministic settings and a flexible JSON response, then validates all 30 rubric IDs before displaying results.
 
 ## Local setup
