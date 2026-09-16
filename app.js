@@ -219,7 +219,10 @@ function renderResults(evaluation) {
   $('#score-status').textContent = evaluation.percentage >= 85 ? 'Meets quality standard' : 'Review required';
   $('#result-summary').textContent = evaluation.summary;
   $('#detected-language').textContent = evaluation.detected_language || 'English';
-  $('#transcript').textContent = evaluation.english_transcript || evaluation.transcript;
+  const speakerTranscript = evaluation.english_transcript || evaluation.transcript;
+  $('#transcript').textContent = speakerTranscript;
+  $('#live-transcript-text').textContent = speakerTranscript;
+  $('#transcript-status').textContent = 'Speaker labels ready';
   $('#section-results').innerHTML = evaluation.sections.map((section, index) => `<details class="result-section" ${index === 0 ? 'open' : ''}><summary><span class="section-title"><strong>${escapeHtml(section.title)}</strong><small>${section.items.length} checks</small></span><span class="section-score">${section.score} / ${section.max}</span></summary>${section.items.map(item => `<div class="question-row"><div><p>${escapeHtml(item.text)}${item.critical ? '<span class="critical-tag">CRITICAL</span>' : ''}</p><small>${escapeHtml(item.comment || 'No comment')} ${item.evidence ? `· “${escapeHtml(item.evidence)}”` : ''}</small></div><span class="question-score ${item.score === 0 ? 'zero' : ''}">${item.score}/5</span></div>`).join('')}</details>`).join('');
   $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
