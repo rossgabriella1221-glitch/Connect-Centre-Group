@@ -1,4 +1,4 @@
-import { rubric, flatRubric, maxScore, calculate } from "./lib/rubric.js";
+import { rubric, flatRubric, fullMaxScore, calculate } from "./lib/rubric.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -73,6 +73,7 @@ function renderResults(evaluation) {
   $('#results').classList.remove('hidden');
   $('#score-percent').textContent = `${evaluation.percentage}%`;
   $('#score-points').textContent = evaluation.score;
+  $('#score-max').textContent = evaluation.max;
   $('.score-ring').style.background = `conic-gradient(var(--teal) ${evaluation.percentage * 3.6}deg,#e5ece9 0deg)`;
   $('#score-status').textContent = evaluation.percentage >= 85 ? 'Meets quality standard' : 'Review required';
   $('#result-summary').textContent = evaluation.summary;
@@ -111,7 +112,7 @@ function formatBytes(bytes) { return `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
 function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 
 if (document.modelContext?.registerTool) {
-  document.modelContext.registerTool({ name: 'start_voice_qa_evaluation', title: 'Start voice QA evaluation', description: 'Start evaluating the recording currently selected in the visible VoiceQA dashboard.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: async () => { if (!selectedFile) throw new Error('Select a recording first.'); await evaluate(); return { score: latestEvaluation?.score, max: maxScore, percentage: latestEvaluation?.percentage }; } });
+  document.modelContext.registerTool({ name: 'start_voice_qa_evaluation', title: 'Start voice QA evaluation', description: 'Start evaluating the recording currently selected in the visible VoiceQA dashboard.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: async () => { if (!selectedFile) throw new Error('Select a recording first.'); await evaluate(); return { score: latestEvaluation?.score, max: latestEvaluation?.max, percentage: latestEvaluation?.percentage }; } });
 }
 
-console.info(`VoiceQA rubric loaded: ${flatRubric.length} checks, ${maxScore} points.`);
+console.info(`VoiceQA rubric loaded: ${flatRubric.length} checks, ${fullMaxScore} points.`);
