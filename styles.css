@@ -159,6 +159,12 @@ body:not(.auth-locked)>.auth-screen{display:none}
 .account-card small,.security-copy{color:var(--muted);font-size:12px;margin-top:3px}
 .sign-out-button{margin-top:18px}
 .security-copy{line-height:1.5}
+.audio-player{display:block;width:100%;margin-top:14px;height:42px}
+.live-transcript{margin-top:14px;border:1px solid #cfe0da;border-radius:12px;background:#f7fbf9;padding:16px}
+.live-transcript>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.live-transcript strong{font:700 14px Manrope}
+.live-transcript span{font-size:11px;font-weight:700;color:var(--teal);background:#e7f4ef;border-radius:999px;padding:5px 8px}
+.live-transcript p{max-height:190px;overflow:auto;white-space:pre-wrap;margin:12px 0 0;color:#40544e;font-size:13px;line-height:1.6}
 @media(max-width:680px){.sidebar{position:static;width:100%;height:auto;flex-direction:row;padding:12px 16px;align-items:center}
 .sidebar nav{display:flex;margin:0 0 0 auto}
 .sidebar-foot{display:none}
