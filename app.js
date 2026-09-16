@@ -268,13 +268,13 @@ $('#save-button').addEventListener('click', async () => {
 
 async function loadHistory() {
   const tbody = $('#history-body');
-  tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Loading evaluations…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">Loading evaluations…</td></tr>';
   try {
     const response = await authFetch('/api/evaluations');
     if (!response.ok) throw new Error();
     const rows = await response.json();
-    tbody.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${escapeHtml(row.agent)}</strong></td><td>${escapeHtml(row.campaign)}</td><td>${escapeHtml(row.transaction_id || '—')}</td><td><strong>${row.score}/${row.max_score}</strong></td><td>${escapeHtml(row.status.replace('_',' '))}</td><td>${new Date(row.created_at).toLocaleDateString()}</td></tr>`).join('') : '<tr><td colspan="6" class="empty-cell">No saved evaluations yet.</td></tr>';
-  } catch { tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Connect a Supabase project in Settings to load history.</td></tr>'; }
+    tbody.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${escapeHtml(row.agent)}</strong></td><td>${escapeHtml(row.campaign)}</td><td>${escapeHtml(row.transaction_id || '—')}</td><td><strong>${row.score}/${row.max_score}</strong></td><td><strong>${formatPercentage(row.percentage)}</strong></td><td>${escapeHtml(row.status.replace('_',' '))}</td><td>${new Date(row.created_at).toLocaleDateString()}</td></tr>`).join('') : '<tr><td colspan="7" class="empty-cell">No saved evaluations yet.</td></tr>';
+  } catch { tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">Connect a Supabase project in Settings to load history.</td></tr>'; }
 }
 $('#refresh-history').addEventListener('click', loadHistory);
 
@@ -283,6 +283,7 @@ $('#help-button').addEventListener('click', () => $('#help-dialog').showModal())
 $('#help-close').addEventListener('click', () => $('#help-dialog').close());
 
 function formatBytes(bytes) { return `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
+function formatPercentage(value) { const number = Number(value); return Number.isFinite(number) ? `${Number(number.toFixed(2))}%` : '—'; }
 function formatSpeakerTranscript(value = '') { return String(value).trim().replace(/\n+\s*(?=(?:Agent|Caller)\s*-\s*)/g, '\n\n'); }
 function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 
