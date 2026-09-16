@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Voice QA evaluation dashboard" />
+  <title>VoiceQA · Quality evaluation</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23152f29'/%3E%3Cpath d='M19 33h5l4-13 7 27 5-18 4 4h3' fill='none' stroke='%23d8ff75' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#" aria-label="VoiceQA home"><span class="brand-mark">VQ</span><span>VoiceQA</span></a>
+    <nav aria-label="Main navigation">
+      <button class="nav-item active" data-view="new"><span>⌁</span> New evaluation</button>
+      <button class="nav-item" data-view="history"><span>◫</span> Evaluations</button>
+      <button class="nav-item" data-view="rubric"><span>✓</span> QA rubric</button>
+      <button class="nav-item" data-view="settings"><span>⚙</span> Settings</button>
+    </nav>
+    <div class="sidebar-foot"><div class="avatar">HR</div><div><strong>Harris Ross</strong><span>Quality manager</span></div></div>
+  </aside>
+
+  <main>
+    <header class="topbar"><div><p class="eyebrow">QUALITY OPERATIONS</p><h1 id="page-title">New voice evaluation</h1></div><div class="top-actions"><span class="system-status"><i></i> Systems ready</span><button class="icon-btn" id="help-button" aria-label="Open help">?</button></div></header>
+
+    <section id="new-view" class="view active">
+      <div class="workflow-grid">
+        <section class="panel upload-panel">
+          <div class="panel-head"><div><span class="step-no">01</span><h2>Add recording</h2></div><span class="required">Required</span></div>
+          <label class="dropzone" id="dropzone">
+            <input id="audio-input" type="file" accept="audio/*" hidden />
+            <span class="upload-icon">↑</span><strong>Drop a call recording here</strong><span>or click to browse · MP3, WAV, M4A, WEBM · max 25 MB</span>
+          </label>
+          <div id="file-chip" class="file-chip hidden"><div><span class="play-dot">▶</span><div><strong id="file-name"></strong><span id="file-size"></span></div></div><button id="remove-file" aria-label="Remove file">×</button></div>
+        </section>
+
+        <section class="panel details-panel">
+          <div class="panel-head"><div><span class="step-no">02</span><h2>Call details</h2></div></div>
+          <div class="form-grid">
+            <label>Agent name<input id="agent" value="Danielle" /></label>
+            <label>Campaign<input id="campaign" value="Geneco" /></label>
+            <label>Transaction ID<input id="transaction" value="145607" /></label>
+            <label>Source language<select id="language"><option value="auto">Detect automatically</option><option>English</option><option>Mandarin</option><option>Malay</option><option>Tamil</option><option>Spanish</option><option>French</option></select></label>
+          </div>
+        </section>
+
+        <section class="panel process-panel">
+          <div class="panel-head"><div><span class="step-no">03</span><h2>Evaluation pipeline</h2></div><span class="rubric-badge">40 checks · 200 points</span></div>
+          <ol class="pipeline">
+            <li class="current"><span>1</span><div><strong>Transcribe recording</strong><small>Capture speakers and dialogue</small></div></li>
+            <li><span>2</span><div><strong>Translate to English</strong><small>Preserve meaning and context</small></div></li>
+            <li><span>3</span><div><strong>Apply QA rubric</strong><small>Score in workbook order</small></div></li>
+            <li><span>4</span><div><strong>Quality review</strong><small>Evidence and comments</small></div></li>
+          </ol>
+          <button id="evaluate-button" class="primary-button" disabled><span>Start evaluation</span><b>→</b></button>
+          <p id="form-message" class="form-message">Add a recording to continue.</p>
+        </section>
+      </div>
+
+      <section id="results" class="results hidden">
+        <div class="results-head"><div><p class="eyebrow">EVALUATION COMPLETE</p><h2>QA scorecard</h2></div><button id="save-button" class="secondary-button">Save evaluation</button></div>
+        <div class="score-overview">
+          <div class="score-card"><div class="score-ring"><span id="score-percent">0%</span></div><div><span>Overall score</span><strong><b id="score-points">0</b> / 200</strong><small id="score-status">Review required</small></div></div>
+          <div class="summary-card"><span>AI summary</span><p id="result-summary"></p></div>
+          <div class="language-card"><span>Language</span><strong id="detected-language">—</strong><small>Translated to English</small></div>
+        </div>
+        <div class="result-layout"><div id="section-results" class="section-results"></div><aside class="transcript-card"><div class="transcript-head"><strong>English transcript</strong><button id="copy-transcript">Copy</button></div><p id="transcript"></p></aside></div>
+      </section>
+    </section>
+
+    <section id="history-view" class="view"><div class="panel"><div class="panel-head"><div><h2>Evaluation history</h2><p>Saved calls from Supabase</p></div><button class="secondary-button" id="refresh-history">Refresh</button></div><div class="table-wrap"><table><thead><tr><th>Agent</th><th>Campaign</th><th>Transaction</th><th>Score</th><th>Status</th><th>Date</th></tr></thead><tbody id="history-body"><tr><td colspan="6" class="empty-cell">No evaluations loaded yet.</td></tr></tbody></table></div></div></section>
+    <section id="rubric-view" class="view"><div class="rubric-intro"><p class="eyebrow">SOURCE: QM EXCEL.XLSX</p><h2>Exact workbook scoring sequence</h2><p>Every check retains its original section, order, five-point maximum and reverse-scoring behavior.</p></div><div id="rubric-list" class="rubric-list"></div></section>
+    <section id="settings-view" class="view"><div class="settings-grid"><div class="panel"><h2>Connections</h2><div class="connection"><span class="connection-icon github">GH</span><div><strong>GitHub</strong><small>Source and version control</small></div><span class="connected">Connected</span></div><div class="connection"><span class="connection-icon supabase">S</span><div><strong>Supabase</strong><small>Database and recording storage</small></div><span class="pending">Choose project</span></div><div class="connection"><span class="connection-icon vercel">▲</span><div><strong>Vercel</strong><small>Hosting and server functions</small></div><span class="connected">Connected</span></div></div><div class="panel"><h2>Evaluation rules</h2><label class="setting-row"><span><strong>Auto-detect language</strong><small>Translate non-English calls before scoring</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Require evidence</strong><small>Show transcript support for every answer</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Flag critical misses</strong><small>Highlight starred workbook questions</small></span><input type="checkbox" checked /></label></div></div></section>
+  </main>
+
+  <dialog id="help-dialog"><button class="dialog-close" id="help-close">×</button><p class="eyebrow">HOW IT WORKS</p><h2>Evaluate a call in four exact steps</h2><ol><li>Upload one voice recording.</li><li>Confirm the call and agent details.</li><li>VoiceQA transcribes, translates and scores all 40 checks in workbook order.</li><li>Review evidence, adjust any manual checks, and save the result.</li></ol><p>CRM-only checks are flagged for manual confirmation when the recording cannot prove them.</p></dialog>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

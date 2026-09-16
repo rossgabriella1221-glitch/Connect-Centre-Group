@@ -1,0 +1,12 @@
+{
+  "name": "voiceqa-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check app.js && node --check api/evaluate.js && node --check api/evaluations.js",
+    "dev": "npx vercel dev"
+  },
+  "engines": { "node": ">=20" }
+}
