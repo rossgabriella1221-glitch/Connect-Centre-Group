@@ -293,15 +293,33 @@ function resetEvaluation() {
 
 async function loadHistory() {
   const tbody = $('#history-body');
-  tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">Loading evaluations…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-cell">Loading evaluations…</td></tr>';
   try {
     const response = await authFetch('/api/evaluations');
     if (!response.ok) throw new Error();
     const rows = await response.json();
-    tbody.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${escapeHtml(row.agent)}</strong></td><td>${escapeHtml(row.campaign)}</td><td>${escapeHtml(row.transaction_id || '—')}</td><td><strong>${row.score}/${row.max_score}</strong></td><td><strong>${formatPercentage(row.percentage)}</strong></td><td>${escapeHtml(row.status.replace('_',' '))}</td><td>${new Date(row.created_at).toLocaleDateString()}</td></tr>`).join('') : '<tr><td colspan="7" class="empty-cell">No saved evaluations yet.</td></tr>';
-  } catch { tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">Connect a Supabase project in Settings to load history.</td></tr>'; }
+    tbody.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${escapeHtml(row.agent)}</strong></td><td>${escapeHtml(row.campaign)}</td><td>${escapeHtml(row.transaction_id || '—')}</td><td><strong>${row.score}/${row.max_score}</strong></td><td><strong>${formatPercentage(row.percentage)}</strong></td><td>${escapeHtml(row.status.replace('_',' '))}</td><td>${new Date(row.created_at).toLocaleDateString()}</td><td><button class="delete-evaluation" type="button" data-evaluation-id="${escapeHtml(row.id)}" data-evaluation-label="${escapeHtml(`${row.agent} · ${row.transaction_id || 'No transaction ID'}`)}">Delete</button></td></tr>`).join('') : '<tr><td colspan="8" class="empty-cell">No saved evaluations yet.</td></tr>';
+  } catch { tbody.innerHTML = '<tr><td colspan="8" class="empty-cell">Connect a Supabase project in Settings to load history.</td></tr>'; }
 }
 $('#refresh-history').addEventListener('click', loadHistory);
+
+$('#history-body').addEventListener('click', async event => {
+  const button = event.target.closest('.delete-evaluation');
+  if (!button) return;
+  if (!window.confirm(`Delete ${button.dataset.evaluationLabel}?\n\nThis cannot be undone.`)) return;
+  button.disabled = true;
+  button.textContent = 'Deleting…';
+  try {
+    const response = await authFetch(`/api/evaluations?id=${encodeURIComponent(button.dataset.evaluationId)}`, { method: 'DELETE' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'Could not delete the evaluation.');
+    await Promise.all([loadHistory(), loadDashboard()]);
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = 'Delete';
+    window.alert(error.message);
+  }
+});
 
 async function loadDashboard() {
   try {
