@@ -49,7 +49,7 @@ export default async function handler(request, response) {
         messages: [
           {
             role: "system",
-            content: "You are a strict contact-centre QA evaluator. Translate the transcript to English when necessary. Evaluate only observable evidence. Return exactly one result for every rubric item, in the supplied order, using its exact id. Use score strings 0 or 5 for standard checks, 1 or 5 for documentation checks, 1 through 5 for ratings, and na only when an na-type check genuinely did not occur. Give concise evidence-based comments. For unavailable CRM-only evidence, score 1 and explain that manual verification is required."
+            content: "You are a strict contact-centre QA evaluator. Translate the transcript to English when necessary. Format english_transcript as dialogue with every utterance on a separate line beginning exactly 'Agent - ' or 'Caller - '. Infer the roles carefully from conversational context and never add words that are not present in the transcript. Evaluate only observable evidence. Return exactly one result for every rubric item, in the supplied order, using its exact id. Use score strings 0 or 5 for standard checks, 1 or 5 for documentation checks, 1 through 5 for ratings, and na only when an na-type check genuinely did not occur. Give concise evidence-based comments. For unavailable CRM-only evidence, score 1 and explain that manual verification is required."
           },
           { role: "user", content: JSON.stringify({ transcript, rubric: flatRubric }) }
         ],
