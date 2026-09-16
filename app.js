@@ -107,6 +107,7 @@ function unlock(user) {
   $('#settings-user-email').textContent = userId;
   $('#user-avatar').textContent = userId.slice(0, 2).toUpperCase();
   document.body.classList.remove('auth-locked');
+  loadDashboard();
 }
 
 function clearSession() {
@@ -127,14 +128,18 @@ function normalizeUserId(value = '') {
   return value.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 32);
 }
 
-const titles = { new: "New voice evaluation", history: "Evaluation history", rubric: "QA rubric", settings: "Settings" };
+const titles = { dashboard: "VoiceQA Dashboard", new: "New voice evaluation", history: "Evaluation history", rubric: "QA rubric", settings: "Settings" };
 $$('[data-view]').forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
 function showView(view) {
   $$('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view));
   $$('.view').forEach(item => item.classList.toggle('active', item.id === `${view}-view`));
   $('#page-title').textContent = titles[view];
+  if (view === 'dashboard') loadDashboard();
   if (view === 'history') loadHistory();
 }
+$('#brand-home').addEventListener('click', event => { event.preventDefault(); showView('dashboard'); });
+$('#dashboard-new-evaluation').addEventListener('click', () => { showView('new'); $('#audio-input').click(); });
+$('#dashboard-view-all').addEventListener('click', () => showView('history'));
 
 const dropzone = $('#dropzone');
 $('#audio-input').addEventListener('change', event => selectFile(event.target.files[0]));
@@ -264,7 +269,27 @@ $('#save-button').addEventListener('click', async () => {
   const response = await authFetch('/api/evaluations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) { const payload = await response.json().catch(() => ({})); return setMessage(payload.error || 'Could not save the evaluation.', true); }
   $('#save-button').textContent = 'Saved ✓';
+  setMessage('Evaluation saved. Preparing a clean form for the next call.');
+  window.setTimeout(resetEvaluation, 700);
 });
+
+function resetEvaluation() {
+  latestEvaluation = null;
+  $('#audio-input').value = '';
+  selectFile(null);
+  $('#agent').value = '';
+  $('#campaign').value = '';
+  $('#transaction').value = '';
+  $('#language').value = 'auto';
+  $('#results').classList.add('hidden');
+  $('#section-results').innerHTML = '';
+  $('#result-summary').textContent = '';
+  $('#detected-language').textContent = '—';
+  $('#save-button').textContent = 'Save evaluation';
+  setPipeline(0);
+  showView('new');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 async function loadHistory() {
   const tbody = $('#history-body');
@@ -277,6 +302,34 @@ async function loadHistory() {
   } catch { tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">Connect a Supabase project in Settings to load history.</td></tr>'; }
 }
 $('#refresh-history').addEventListener('click', loadHistory);
+
+async function loadDashboard() {
+  try {
+    const response = await authFetch('/api/evaluations');
+    if (!response.ok) throw new Error();
+    const rows = await response.json();
+    const percentages = rows.map(row => Number(row.percentage)).filter(Number.isFinite);
+    const average = percentages.length ? percentages.reduce((sum, value) => sum + value, 0) / percentages.length : null;
+    const passed = percentages.filter(value => value >= 85).length;
+    $('#dashboard-average').textContent = average === null ? '—' : formatPercentage(average);
+    $('#dashboard-count').textContent = String(rows.length);
+    $('#dashboard-pass-rate').textContent = percentages.length ? formatPercentage((passed / percentages.length) * 100) : '—';
+    $('#dashboard-history').innerHTML = rows.length ? rows.slice(0, 5).map(row => `<tr><td><strong>${escapeHtml(row.agent)}</strong></td><td>${escapeHtml(row.campaign)}</td><td><strong>${formatPercentage(row.percentage)}</strong></td><td><span class="status-pill ${Number(row.percentage) >= 85 ? 'pass' : 'review'}">${Number(row.percentage) >= 85 ? 'Pass' : 'Review required'}</span></td><td>${new Date(row.created_at).toLocaleDateString()}</td></tr>`).join('') : '<tr><td colspan="5" class="empty-cell">No saved evaluations yet.</td></tr>';
+    renderDashboardTrend(rows.slice(0, 8).reverse());
+  } catch {
+    $('#dashboard-average').textContent = '—';
+    $('#dashboard-count').textContent = '—';
+    $('#dashboard-pass-rate').textContent = '—';
+    $('#dashboard-history').innerHTML = '<tr><td colspan="5" class="empty-cell">Could not load saved evaluations.</td></tr>';
+    $('#dashboard-trend').innerHTML = '<span class="dashboard-empty">Quality trend is unavailable.</span>';
+  }
+}
+
+function renderDashboardTrend(rows) {
+  const trend = $('#dashboard-trend');
+  if (!rows.length) { trend.innerHTML = '<span class="dashboard-empty">No saved evaluations yet.</span>'; return; }
+  trend.innerHTML = rows.map(row => { const percentage = Math.max(4, Math.min(100, Number(row.percentage) || 0)); return `<div class="trend-column"><strong>${formatPercentage(row.percentage)}</strong><span style="height:${percentage}%"></span><small>${new Date(row.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></div>`; }).join('');
+}
 
 $('#rubric-list').innerHTML = rubric.map((section, sectionIndex) => `<section class="rubric-section"><h3>${String(sectionIndex + 1).padStart(2,'0')} · ${escapeHtml(section.title)} <span class="section-score">${section.items.length * 5} pts</span></h3><ul>${section.items.map((item, i) => `<li><b>${i + 1}</b><span>${escapeHtml(item.text)}${item.critical ? '<span class="critical-tag">CRITICAL</span>' : ''}</span></li>`).join('')}</ul></section>`).join('');
 $('#help-button').addEventListener('click', () => $('#help-dialog').showModal());
