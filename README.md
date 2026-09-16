@@ -4,8 +4,8 @@ A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation s
 
 ## Workflow
 
-1. Upload one call recording (MP3, WAV, M4A, WEBM or OGG; max 25 MB).
-2. Transcribe the call in its original language.
+1. Upload one call recording (MP3, WAV, M4A, WEBM or OGG; max 25 MB) and play it in the dashboard.
+2. Transcribe the call in its original language and show the transcript as soon as it is ready.
 3. Translate the transcript to English when needed.
 4. Apply all 30 PDF checks in the original 8-section sequence.
 5. Review evidence and save the dynamic scorecard to Supabase. N/A checks are excluded from the available maximum.
