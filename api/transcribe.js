@@ -15,8 +15,10 @@ export default async function handler(request, response) {
 
     const transcriptionForm = new FormData();
     transcriptionForm.set("file", audio, audio.name || "recording.mp3");
-    transcriptionForm.set("model", "whisper-large-v3-turbo");
+    transcriptionForm.set("model", "whisper-large-v3");
     transcriptionForm.set("response_format", "json");
+    transcriptionForm.set("temperature", "0");
+    transcriptionForm.set("prompt", "This is a contact-centre telephone call between an agent and a caller. Transcribe the complete recording through the final spoken word. Preserve names, numbers, questions, answers, and closing statements exactly as heard.");
     const upstream = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
