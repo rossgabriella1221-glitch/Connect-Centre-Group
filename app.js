@@ -219,7 +219,7 @@ function renderResults(evaluation) {
   $('#score-status').textContent = evaluation.percentage >= 85 ? 'Meets quality standard' : 'Review required';
   $('#result-summary').textContent = evaluation.summary;
   $('#detected-language').textContent = evaluation.detected_language || 'English';
-  const speakerTranscript = evaluation.english_transcript || evaluation.transcript;
+  const speakerTranscript = formatSpeakerTranscript(evaluation.english_transcript || evaluation.transcript);
   $('#transcript').textContent = speakerTranscript;
   $('#live-transcript-text').textContent = speakerTranscript;
   $('#transcript-status').textContent = 'Speaker labels ready';
@@ -253,6 +253,7 @@ $('#help-button').addEventListener('click', () => $('#help-dialog').showModal())
 $('#help-close').addEventListener('click', () => $('#help-dialog').close());
 
 function formatBytes(bytes) { return `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
+function formatSpeakerTranscript(value = '') { return String(value).trim().replace(/\n+\s*(?=(?:Agent|Caller)\s*-\s*)/g, '\n\n'); }
 function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 
 if (document.modelContext?.registerTool) {
