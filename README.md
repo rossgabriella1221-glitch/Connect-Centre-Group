@@ -18,7 +18,7 @@ Copy `.env.example` to `.env.local` and configure:
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for storage and the one-time owner-account setup.
 - `QA_ACCESS_KEY` is used only once to authorize creation of the single owner account.
 
-On first launch, select **Set up the owner account**, enter an email, a strong password and the existing `QA_ACCESS_KEY`. Once the owner exists, the setup endpoint refuses to create another account. All evaluation API routes require the owner's verified Supabase session, and Row Level Security restricts saved evaluations to that owner.
+On first launch, select **Set up the owner account**, enter a User ID, a strong password and the existing `QA_ACCESS_KEY`. No email address is required. Once the owner exists, the setup endpoint refuses to create another account. All evaluation API routes require the owner's verified Supabase session, and Row Level Security restricts saved evaluations to that owner.
 
 Apply `supabase/migrations/20260916000000_create_qa_schema.sql` to the chosen Supabase project. Never expose the service-role key in browser code.
 
