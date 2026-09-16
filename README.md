@@ -15,8 +15,10 @@ A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation s
 Copy `.env.example` to `.env.local` and configure:
 
 - `GROQ_API_KEY` for transcription, translation and evaluation.
-- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for saving evaluations.
-- `QA_ACCESS_KEY` for protecting transcription and evaluation endpoints.
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for storage and the one-time owner-account setup.
+- `QA_ACCESS_KEY` is used only once to authorize creation of the single owner account.
+
+On first launch, select **Set up the owner account**, enter an email, a strong password and the existing `QA_ACCESS_KEY`. Once the owner exists, the setup endpoint refuses to create another account. All evaluation API routes require the owner's verified Supabase session, and Row Level Security restricts saved evaluations to that owner.
 
 Apply `supabase/migrations/20260916000000_create_qa_schema.sql` to the chosen Supabase project. Never expose the service-role key in browser code.
 
@@ -26,6 +28,6 @@ Run `npm test` to verify the workbook scoring model. Deploy the repository to Ve
 
 - The migration enables RLS on evaluation records and restricts recordings to per-user folders.
 - The service-role key is used only in a serverless function.
-- Every server endpoint requires the dashboard access key; the browser retains it only for the active session.
+- Every evaluation endpoint requires a verified Supabase user session; the browser retains it only for the active tab.
 - Audio is capped at 25 MB and accepted only as audio input.
 - CRM-only checks are marked for manual verification when the call recording cannot establish them.
