@@ -27,7 +27,7 @@ async function initializeAuth() {
 
 $('#auth-form').addEventListener('submit', async event => {
   event.preventDefault();
-  const email = $('#auth-email').value.trim();
+  const userId = normalizeUserId($('#auth-user-id').value);
   const password = $('#auth-password').value;
   $('#auth-submit').disabled = true;
   setAuthMessage(authMode === 'setup' ? 'Creating the owner account…' : 'Signing in…', false);
@@ -35,12 +35,12 @@ $('#auth-form').addEventListener('submit', async event => {
     if (authMode === 'setup') {
       const setupResponse = await fetch('/api/account-setup', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, setupKey: $('#setup-key').value })
+        body: JSON.stringify({ userId, password, setupKey: $('#setup-key').value })
       });
       const setupPayload = await setupResponse.json();
       if (!setupResponse.ok) throw new Error(setupPayload.error || 'Could not create the owner account.');
     }
-    await signIn(email, password);
+    await signIn(userId, password);
   } catch (error) { setAuthMessage(error.message, true); }
   finally { $('#auth-submit').disabled = false; }
 });
@@ -63,7 +63,8 @@ $('#sign-out').addEventListener('click', async () => {
   clearSession();
 });
 
-async function signIn(email, password) {
+async function signIn(userId, password) {
+  const email = `${normalizeUserId(userId)}@voiceqa.local`;
   const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: 'POST', headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password })
   });
@@ -100,10 +101,10 @@ function storeSession(payload) {
 
 function unlock(user) {
   currentUser = user;
-  const email = user?.email || 'Owner';
-  $('#user-name').textContent = email;
-  $('#settings-user-email').textContent = email;
-  $('#user-avatar').textContent = email.slice(0, 2).toUpperCase();
+  const userId = user?.app_metadata?.voiceqa_user_id || user?.email?.split('@')[0] || 'Owner';
+  $('#user-name').textContent = userId;
+  $('#settings-user-email').textContent = userId;
+  $('#user-avatar').textContent = userId.slice(0, 2).toUpperCase();
   document.body.classList.remove('auth-locked');
 }
 
@@ -119,6 +120,10 @@ function clearSession() {
 function setAuthMessage(message, error) {
   $('#auth-message').textContent = message;
   $('#auth-message').style.color = error ? 'var(--red)' : 'var(--teal)';
+}
+
+function normalizeUserId(value = '') {
+  return value.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 32);
 }
 
 const titles = { new: "New voice evaluation", history: "Evaluation history", rubric: "QA rubric", settings: "Settings" };
@@ -197,7 +202,7 @@ function renderResults(evaluation) {
 
 $('#save-button').addEventListener('click', async () => {
   if (!latestEvaluation) return;
-  const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: currentUser?.email || 'VoiceQA owner', detected_language: latestEvaluation.detected_language, original_transcript: latestEvaluation.transcript, english_transcript: latestEvaluation.english_transcript, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
+  const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: currentUser?.app_metadata?.voiceqa_user_id || 'VoiceQA owner', detected_language: latestEvaluation.detected_language, original_transcript: latestEvaluation.transcript, english_transcript: latestEvaluation.english_transcript, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
   const response = await authFetch('/api/evaluations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) { const payload = await response.json().catch(() => ({})); return setMessage(payload.error || 'Could not save the evaluation.', true); }
   $('#save-button').textContent = 'Saved ✓';
