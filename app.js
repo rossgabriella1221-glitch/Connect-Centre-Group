@@ -6,6 +6,7 @@ const SUPABASE_URL = 'https://trbgcgwgbfqbfzsbdhmb.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_PCl6O_LbLG2DKPbMRhkG-Q_WLOWiHzr';
 let selectedFile = null;
 let latestEvaluation = null;
+let audioObjectUrl = null;
 let currentUser = null;
 let session = JSON.parse(sessionStorage.getItem('voiceqa_session') || 'null');
 let authMode = 'signin';
@@ -147,10 +148,18 @@ function selectFile(file) {
   if (!valid) return setMessage('Please choose an audio recording.', true);
   if (file?.size > 25 * 1024 * 1024) return setMessage('The recording must be 25 MB or smaller.', true);
   selectedFile = file;
+  if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+  audioObjectUrl = file ? URL.createObjectURL(file) : null;
+  const player = $('#audio-player');
+  player.src = audioObjectUrl || '';
+  player.classList.toggle('hidden', !file);
   $('#file-chip').classList.toggle('hidden', !file);
   dropzone.classList.toggle('hidden', Boolean(file));
   $('#evaluate-button').disabled = !file;
-  if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Ready to transcribe and score.'); }
+  $('#live-transcript').classList.add('hidden');
+  $('#live-transcript-text').textContent = '';
+  $('#transcript-status').textContent = 'Waiting to transcribe';
+  if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Listen now, or start the evaluation to generate the transcript.'); }
   else setMessage('Add a recording to continue.');
 }
 
@@ -163,9 +172,24 @@ async function evaluate() {
     data.set('audio', selectedFile);
     data.set('language', $('#language').value);
     setPipeline(0);
-    const request = authFetch('/api/evaluate', { method: 'POST', body: data });
-    const timers = [setTimeout(() => setPipeline(1), 1800), setTimeout(() => setPipeline(2), 3800), setTimeout(() => setPipeline(3), 6500)];
-    const response = await request;
+    $('#live-transcript').classList.remove('hidden');
+    $('#transcript-status').textContent = 'Transcribing…';
+    $('#live-transcript-text').textContent = 'VoiceQA is listening to the recording.';
+
+    const transcriptionResponse = await authFetch('/api/transcribe', { method: 'POST', body: data });
+    const transcription = await transcriptionResponse.json();
+    if (!transcriptionResponse.ok) throw new Error(transcription.error || 'Transcription failed.');
+    $('#live-transcript-text').textContent = transcription.transcript;
+    $('#transcript-status').textContent = 'Transcript ready';
+    setPipeline(1);
+    setMessage('Transcript ready. Translating and applying the QA rubric…');
+
+    const timers = [setTimeout(() => setPipeline(2), 1200), setTimeout(() => setPipeline(3), 3500)];
+    const response = await authFetch('/api/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript: transcription.transcript })
+    });
     timers.forEach(clearTimeout);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Evaluation failed.');
