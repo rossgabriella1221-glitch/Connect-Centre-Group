@@ -1,14 +1,14 @@
 # VoiceQA Dashboard
 
-A Vercel-ready voice quality evaluation dashboard based exactly on `QM excel.xlsx`.
+A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation sample.pdf`.
 
 ## Workflow
 
 1. Upload one call recording (MP3, WAV, M4A, WEBM or OGG; max 25 MB).
 2. Transcribe the call in its original language.
 3. Translate the transcript to English when needed.
-4. Apply all 40 workbook checks in the original 11-section sequence.
-5. Review evidence and save the 200-point scorecard to Supabase.
+4. Apply all 30 PDF checks in the original 8-section sequence.
+5. Review evidence and save the dynamic scorecard to Supabase. N/A checks are excluded from the available maximum.
 
 ## Local setup
 
