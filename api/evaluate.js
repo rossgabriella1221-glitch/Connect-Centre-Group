@@ -1,10 +1,7 @@
 import { flatRubric, calculate } from "../lib/rubric.js";
 import { authenticate } from "../lib/auth.js";
 
-export const config = { api: { bodyParser: false } };
-
 const GROQ_API_URL = "https://api.groq.com/openai/v1";
-const TRANSCRIPTION_MODEL = "whisper-large-v3-turbo";
 const EVALUATION_MODEL = "openai/gpt-oss-20b";
 
 export default async function handler(request, response) {
@@ -13,24 +10,9 @@ export default async function handler(request, response) {
   if (!process.env.GROQ_API_KEY) return response.status(503).json({ error: "GROQ_API_KEY is not configured." });
 
   try {
-    const form = await readForm(request);
-    const audio = form.get("audio");
-    if (!(audio instanceof Blob)) return response.status(400).json({ error: "An audio file is required." });
-    if (audio.size > 25 * 1024 * 1024) return response.status(413).json({ error: "Audio must be 25 MB or smaller." });
-
-    const transcriptionForm = new FormData();
-    transcriptionForm.set("file", audio, audio.name || "recording.mp3");
-    transcriptionForm.set("model", TRANSCRIPTION_MODEL);
-    transcriptionForm.set("response_format", "json");
-    const transcriptionResponse = await fetch(`${GROQ_API_URL}/audio/transcriptions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
-      body: transcriptionForm
-    });
-    if (!transcriptionResponse.ok) throw new Error(await providerError("Transcription", transcriptionResponse));
-    const transcriptPayload = await transcriptionResponse.json();
-    const transcript = transcriptPayload.text?.trim() || "";
-    if (!transcript) throw new Error("No speech was detected in the recording.");
+    const body = typeof request.body === "string" ? JSON.parse(request.body) : request.body;
+    const transcript = body?.transcript?.trim() || "";
+    if (!transcript) return response.status(400).json({ error: "A transcript is required." });
 
     const schema = {
       type: "object",
@@ -95,10 +77,4 @@ async function providerError(stage, providerResponse) {
     detail = payload?.error?.message || "";
   } catch {}
   return `${stage} failed (${providerResponse.status})${detail ? `: ${detail}` : "."}`;
-}
-
-async function readForm(request) {
-  const chunks = [];
-  for await (const chunk of request) chunks.push(chunk);
-  return new Response(Buffer.concat(chunks), { headers: { "content-type": request.headers["content-type"] } }).formData();
 }
