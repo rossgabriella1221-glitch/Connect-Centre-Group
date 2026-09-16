@@ -1,9 +1,11 @@
 import { flatRubric, calculate } from "../lib/rubric.js";
+import { timingSafeEqual } from "node:crypto";
 
 export const config = { api: { bodyParser: false } };
 
 export default async function handler(request, response) {
   if (request.method !== "POST") return response.status(405).json({ error: "Method not allowed" });
+  if (!authorized(request)) return response.status(401).json({ error: "A valid dashboard access key is required." });
   if (!process.env.OPENAI_API_KEY) return response.status(503).json({ error: "OPENAI_API_KEY is not configured." });
 
   try {
@@ -49,6 +51,13 @@ export default async function handler(request, response) {
   } catch (error) {
     return response.status(500).json({ error: error.message || "Evaluation failed." });
   }
+}
+
+function authorized(request) {
+  const expected = process.env.QA_ACCESS_KEY || "";
+  const provided = (request.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  if (!expected || !provided || expected.length !== provided.length) return false;
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
 }
 
 async function readForm(request) {
