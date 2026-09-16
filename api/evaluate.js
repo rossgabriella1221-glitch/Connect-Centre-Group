@@ -1,4 +1,4 @@
-import { flatRubric, calculate, ringResult } from "../lib/rubric.js";
+import { flatRubric, calculate } from "../lib/rubric.js";
 import { authenticate } from "../lib/auth.js";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1";
@@ -13,8 +13,6 @@ export default async function handler(request, response) {
     const body = typeof request.body === "string" ? JSON.parse(request.body) : request.body;
     const transcript = body?.transcript?.trim() || "";
     if (!transcript) return response.status(400).json({ error: "A transcript is required." });
-    const confirmedRingResult = ringResult(body?.ringCount);
-    if (!confirmedRingResult) return response.status(400).json({ error: "Select the number of rings before answer." });
 
     const schema = {
       type: "object",
@@ -65,7 +63,6 @@ export default async function handler(request, response) {
     if (!Array.isArray(parsed.results) || parsed.results.length !== flatRubric.length) {
       throw new Error("The evaluation returned an incomplete scorecard. Please try again.");
     }
-    parsed.results = parsed.results.map(result => result.id === "g1" ? confirmedRingResult : result);
     const evaluation = calculate(parsed.results);
     return response.status(200).json({ transcript, ...parsed, ...evaluation, created_at: new Date().toISOString() });
   } catch (error) {
