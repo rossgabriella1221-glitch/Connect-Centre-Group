@@ -2,12 +2,124 @@ import { rubric, flatRubric, fullMaxScore, calculate } from "./lib/rubric.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
+const SUPABASE_URL = 'https://trbgcgwgbfqbfzsbdhmb.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_PCl6O_LbLG2DKPbMRhkG-Q_WLOWiHzr';
 let selectedFile = null;
 let latestEvaluation = null;
-const accessKeyInput = $('#access-key');
-accessKeyInput.value = sessionStorage.getItem('voiceqa_access_key') || '';
-accessKeyInput.addEventListener('change', () => sessionStorage.setItem('voiceqa_access_key', accessKeyInput.value));
-const authHeaders = () => ({ Authorization: `Bearer ${accessKeyInput.value}` });
+let currentUser = null;
+let session = JSON.parse(sessionStorage.getItem('voiceqa_session') || 'null');
+let authMode = 'signin';
+const authHeaders = () => ({ Authorization: `Bearer ${session?.access_token || ''}` });
+
+initializeAuth();
+
+async function initializeAuth() {
+  const setup = await fetch('/api/account-setup').then(response => response.json()).catch(() => ({ setupAvailable: false }));
+  $('#auth-switch').classList.toggle('hidden', !setup.setupAvailable);
+  if (!session) return;
+  try {
+    await ensureSession();
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_PUBLISHABLE_KEY, ...authHeaders() } });
+    if (!response.ok) throw new Error();
+    unlock(await response.json());
+  } catch { clearSession(); }
+}
+
+$('#auth-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const email = $('#auth-email').value.trim();
+  const password = $('#auth-password').value;
+  $('#auth-submit').disabled = true;
+  setAuthMessage(authMode === 'setup' ? 'Creating the owner account…' : 'Signing in…', false);
+  try {
+    if (authMode === 'setup') {
+      const setupResponse = await fetch('/api/account-setup', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, setupKey: $('#setup-key').value })
+      });
+      const setupPayload = await setupResponse.json();
+      if (!setupResponse.ok) throw new Error(setupPayload.error || 'Could not create the owner account.');
+    }
+    await signIn(email, password);
+  } catch (error) { setAuthMessage(error.message, true); }
+  finally { $('#auth-submit').disabled = false; }
+});
+
+$('#auth-switch').addEventListener('click', () => {
+  authMode = authMode === 'signin' ? 'setup' : 'signin';
+  const setup = authMode === 'setup';
+  $('#auth-title').textContent = setup ? 'Set up VoiceQA owner' : 'Sign in to VoiceQA';
+  $('#auth-copy').textContent = setup ? 'Create the only account allowed to use this system.' : 'Use the single owner account to access evaluations.';
+  $('#setup-key-label').classList.toggle('hidden', !setup);
+  $('#setup-key').required = setup;
+  $('#auth-password').minLength = setup ? 12 : 8;
+  $('#auth-submit span').textContent = setup ? 'Create owner account' : 'Sign in';
+  $('#auth-switch').textContent = setup ? 'Return to sign in' : 'Set up the owner account';
+  setAuthMessage('', false);
+});
+
+$('#sign-out').addEventListener('click', async () => {
+  if (session?.access_token) await fetch(`${SUPABASE_URL}/auth/v1/logout`, { method: 'POST', headers: { apikey: SUPABASE_PUBLISHABLE_KEY, ...authHeaders() } }).catch(() => {});
+  clearSession();
+});
+
+async function signIn(email, password) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: 'POST', headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error_description || payload.msg || payload.message || 'Sign-in failed.');
+  storeSession(payload);
+  unlock(payload.user);
+}
+
+async function ensureSession(force = false) {
+  if (!session?.refresh_token) throw new Error('Please sign in.');
+  if (!force && session.expires_at > Math.floor(Date.now() / 1000) + 60) return session;
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: 'POST', headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: session.refresh_token })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error('Your session expired. Please sign in again.');
+  storeSession(payload);
+  return session;
+}
+
+async function authFetch(url, options = {}) {
+  await ensureSession();
+  const request = () => fetch(url, { ...options, headers: { ...(options.headers || {}), ...authHeaders() } });
+  let response = await request();
+  if (response.status === 401) { await ensureSession(true); response = await request(); }
+  return response;
+}
+
+function storeSession(payload) {
+  session = { ...payload, expires_at: payload.expires_at || Math.floor(Date.now() / 1000) + payload.expires_in };
+  sessionStorage.setItem('voiceqa_session', JSON.stringify(session));
+}
+
+function unlock(user) {
+  currentUser = user;
+  const email = user?.email || 'Owner';
+  $('#user-name').textContent = email;
+  $('#settings-user-email').textContent = email;
+  $('#user-avatar').textContent = email.slice(0, 2).toUpperCase();
+  document.body.classList.remove('auth-locked');
+}
+
+function clearSession() {
+  session = null;
+  currentUser = null;
+  sessionStorage.removeItem('voiceqa_session');
+  document.body.classList.add('auth-locked');
+  $('#auth-password').value = '';
+  setAuthMessage('', false);
+}
+
+function setAuthMessage(message, error) {
+  $('#auth-message').textContent = message;
+  $('#auth-message').style.color = error ? 'var(--red)' : 'var(--teal)';
+}
 
 const titles = { new: "New voice evaluation", history: "Evaluation history", rubric: "QA rubric", settings: "Settings" };
 $$('[data-view]').forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
@@ -46,7 +158,7 @@ async function evaluate() {
     data.set('audio', selectedFile);
     data.set('language', $('#language').value);
     setPipeline(0);
-    const request = fetch('/api/evaluate', { method: 'POST', headers: authHeaders(), body: data });
+    const request = authFetch('/api/evaluate', { method: 'POST', body: data });
     const timers = [setTimeout(() => setPipeline(1), 1800), setTimeout(() => setPipeline(2), 3800), setTimeout(() => setPipeline(3), 6500)];
     const response = await request;
     timers.forEach(clearTimeout);
@@ -85,8 +197,8 @@ function renderResults(evaluation) {
 
 $('#save-button').addEventListener('click', async () => {
   if (!latestEvaluation) return;
-  const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: 'Harris Ross', detected_language: latestEvaluation.detected_language, original_transcript: latestEvaluation.transcript, english_transcript: latestEvaluation.english_transcript, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
-  const response = await fetch('/api/evaluations', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: currentUser?.email || 'VoiceQA owner', detected_language: latestEvaluation.detected_language, original_transcript: latestEvaluation.transcript, english_transcript: latestEvaluation.english_transcript, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
+  const response = await authFetch('/api/evaluations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) { const payload = await response.json().catch(() => ({})); return setMessage(payload.error || 'Could not save the evaluation.', true); }
   $('#save-button').textContent = 'Saved ✓';
 });
@@ -95,7 +207,7 @@ async function loadHistory() {
   const tbody = $('#history-body');
   tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Loading evaluations…</td></tr>';
   try {
-    const response = await fetch('/api/evaluations', { headers: authHeaders() });
+    const response = await authFetch('/api/evaluations');
     if (!response.ok) throw new Error();
     const rows = await response.json();
     tbody.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${escapeHtml(row.agent)}</strong></td><td>${escapeHtml(row.campaign)}</td><td>${escapeHtml(row.transaction_id || '—')}</td><td><strong>${row.score}/${row.max_score}</strong></td><td>${escapeHtml(row.status.replace('_',' '))}</td><td>${new Date(row.created_at).toLocaleDateString()}</td></tr>`).join('') : '<tr><td colspan="6" class="empty-cell">No saved evaluations yet.</td></tr>';
