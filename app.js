@@ -4,6 +4,10 @@ const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 let selectedFile = null;
 let latestEvaluation = null;
+const accessKeyInput = $('#access-key');
+accessKeyInput.value = sessionStorage.getItem('voiceqa_access_key') || '';
+accessKeyInput.addEventListener('change', () => sessionStorage.setItem('voiceqa_access_key', accessKeyInput.value));
+const authHeaders = () => ({ Authorization: `Bearer ${accessKeyInput.value}` });
 
 const titles = { new: "New voice evaluation", history: "Evaluation history", rubric: "QA rubric", settings: "Settings" };
 $$('[data-view]').forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
@@ -42,7 +46,7 @@ async function evaluate() {
     data.set('audio', selectedFile);
     data.set('language', $('#language').value);
     setPipeline(0);
-    const request = fetch('/api/evaluate', { method: 'POST', body: data });
+    const request = fetch('/api/evaluate', { method: 'POST', headers: authHeaders(), body: data });
     const timers = [setTimeout(() => setPipeline(1), 1800), setTimeout(() => setPipeline(2), 3800), setTimeout(() => setPipeline(3), 6500)];
     const response = await request;
     timers.forEach(clearTimeout);
@@ -81,7 +85,7 @@ function renderResults(evaluation) {
 $('#save-button').addEventListener('click', async () => {
   if (!latestEvaluation) return;
   const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: 'Harris Ross', detected_language: latestEvaluation.detected_language, original_transcript: latestEvaluation.transcript, english_transcript: latestEvaluation.english_transcript, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
-  const response = await fetch('/api/evaluations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const response = await fetch('/api/evaluations', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) { const payload = await response.json().catch(() => ({})); return setMessage(payload.error || 'Could not save the evaluation.', true); }
   $('#save-button').textContent = 'Saved ✓';
 });
@@ -90,7 +94,7 @@ async function loadHistory() {
   const tbody = $('#history-body');
   tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Loading evaluations…</td></tr>';
   try {
-    const response = await fetch('/api/evaluations');
+    const response = await fetch('/api/evaluations', { headers: authHeaders() });
     if (!response.ok) throw new Error();
     const rows = await response.json();
     tbody.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${escapeHtml(row.agent)}</strong></td><td>${escapeHtml(row.campaign)}</td><td>${escapeHtml(row.transaction_id || '—')}</td><td><strong>${row.score}/${row.max_score}</strong></td><td>${escapeHtml(row.status.replace('_',' '))}</td><td>${new Date(row.created_at).toLocaleDateString()}</td></tr>`).join('') : '<tr><td colspan="6" class="empty-cell">No saved evaluations yet.</td></tr>';
