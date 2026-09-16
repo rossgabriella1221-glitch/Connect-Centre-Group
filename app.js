@@ -212,11 +212,8 @@ function setMessage(message, error = false) { $('#form-message').textContent = m
 
 function renderResults(evaluation) {
   $('#results').classList.remove('hidden');
-  $('#score-percent').textContent = `${evaluation.percentage}%`;
-  $('#score-points').textContent = evaluation.score;
-  $('#score-max').textContent = evaluation.max;
-  $('.score-ring').style.background = `conic-gradient(var(--teal) ${evaluation.percentage * 3.6}deg,#e5ece9 0deg)`;
-  $('#score-status').textContent = evaluation.percentage >= 85 ? 'Meets quality standard' : 'Review required';
+  renderScoreTotals(evaluation);
+  renderScoreSections(evaluation.sections);
   $('#result-summary').textContent = evaluation.summary;
   $('#detected-language').textContent = evaluation.detected_language || 'English';
   const speakerTranscript = formatSpeakerTranscript(evaluation.english_transcript || evaluation.transcript);
@@ -224,9 +221,44 @@ function renderResults(evaluation) {
   $('#live-transcript-text').textContent = speakerTranscript;
   $('#transcript-status').textContent = 'Speaker labels ready';
   renderTranscriptEditor(speakerTranscript);
-  $('#section-results').innerHTML = evaluation.sections.map((section, index) => `<details class="result-section" ${index === 0 ? 'open' : ''}><summary><span class="section-title"><strong>${escapeHtml(section.title)}</strong><small>${section.items.length} checks</small></span><span class="section-score">${section.score} / ${section.max}</span></summary>${section.items.map(item => `<div class="question-row"><div><p>${escapeHtml(item.text)}${item.critical ? '<span class="critical-tag">CRITICAL</span>' : ''}</p><small>${escapeHtml(item.comment || 'No comment')} ${item.evidence ? `· “${escapeHtml(item.evidence)}”` : ''}</small></div><span class="question-score ${item.score === 0 ? 'zero' : ''}">${item.score}/5</span></div>`).join('')}</details>`).join('');
   $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+function renderScoreTotals(evaluation) {
+  $('#score-percent').textContent = `${evaluation.percentage}%`;
+  $('#score-points').textContent = evaluation.score;
+  $('#score-max').textContent = evaluation.max;
+  $('.score-ring').style.background = `conic-gradient(var(--teal) ${evaluation.percentage * 3.6}deg,#e5ece9 0deg)`;
+  $('#score-status').textContent = evaluation.percentage >= 85 ? 'Meets quality standard' : 'Review required';
+}
+
+function renderScoreSections(sections, openIds = new Set([sections[0]?.id])) {
+  $('#section-results').innerHTML = sections.map(section => `<details class="result-section" data-section-id="${escapeHtml(section.id)}" ${openIds.has(section.id) ? 'open' : ''}><summary><span class="section-title"><strong>${escapeHtml(section.title)}</strong><small>${section.items.length} checks</small></span><span class="section-score">${section.score} / ${section.max}</span></summary>${section.items.map(item => `<div class="question-row"><div><p>${escapeHtml(item.text)}${item.critical ? '<span class="critical-tag">CRITICAL</span>' : ''}</p><small>${escapeHtml(item.comment || 'No comment')} ${item.evidence ? `· “${escapeHtml(item.evidence)}”` : ''}</small></div><label class="question-score-editor"><span class="sr-only">Edit score for ${escapeHtml(item.text)}</span><select class="question-score-select ${item.score === 0 && item.applicable !== false ? 'zero' : ''}" data-score-id="${escapeHtml(item.id)}" aria-label="Edit score for ${escapeHtml(item.text)}">${scoreOptions(item)}</select><b>/5</b></label></div>`).join('')}</details>`).join('');
+}
+
+function scoreOptions(item) {
+  const values = item.type === 'rating' ? ['1','2','3','4','5'] : item.type === 'documentation' ? ['1','5'] : item.type === 'na' ? ['0','5','na'] : ['0','5'];
+  const selected = item.applicable === false ? 'na' : String(item.score);
+  return values.map(value => `<option value="${value}" ${value === selected ? 'selected' : ''}>${value === 'na' ? 'N/A' : value}</option>`).join('');
+}
+
+$('#section-results').addEventListener('change', event => {
+  const select = event.target.closest('.question-score-select');
+  if (!select || !latestEvaluation) return;
+  const openIds = new Set($$('.result-section[open]').map(section => section.dataset.sectionId));
+  const results = latestEvaluation.sections.flatMap(section => section.items.map(item => ({
+    id: item.id,
+    score: item.id === select.dataset.scoreId ? select.value : item.applicable === false ? 'na' : String(item.score),
+    comment: item.id === select.dataset.scoreId ? `${item.comment || 'Score reviewed.'} Manual score applied.` : item.comment,
+    evidence: item.evidence
+  })));
+  const revised = calculate(results);
+  latestEvaluation = { ...latestEvaluation, ...revised };
+  renderScoreTotals(latestEvaluation);
+  renderScoreSections(latestEvaluation.sections, openIds);
+  $('#save-button').textContent = 'Save evaluation';
+  setMessage('Score updated. Save the evaluation to keep this change.');
+});
 
 $('#save-button').addEventListener('click', async () => {
   if (!latestEvaluation) return;
