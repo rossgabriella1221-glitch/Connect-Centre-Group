@@ -5,10 +5,13 @@ A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation s
 ## Workflow
 
 1. Upload one call recording (MP3, WAV, M4A, WEBM or OGG; max 25 MB) and play it in the dashboard.
-2. Transcribe the complete call with the fast Whisper Large v3 Turbo model and show it as soon as it is ready.
-3. Translate the transcript to English when needed.
-4. Apply all 30 PDF checks in the original 8-section sequence.
-5. Review evidence and save the dynamic scorecard to Supabase. N/A checks are excluded from the available maximum.
+2. Select the confirmed number of rings before answer so the three-ring KPI is scored reliably.
+3. Transcribe the complete call with the fast Whisper Large v3 Turbo model and show it as soon as it is ready.
+4. Translate the transcript to English when needed.
+5. Apply all 30 PDF checks in the original 8-section sequence.
+6. Review evidence and save the dynamic scorecard to Supabase. N/A checks are excluded from the available maximum.
+
+The ring KPI is deterministic: 1–3 rings pass, 4 or more fail, and unable to confirm is excluded for manual review.
 
 The speaker transcript is editable: click a speaker label to switch between Agent and Caller, add missing lines, remove incorrect lines and correct the text before saving.
 
