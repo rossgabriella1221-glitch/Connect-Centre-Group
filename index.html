@@ -30,9 +30,10 @@
     </div>
   </section>
   <aside class="sidebar">
-    <a class="brand" href="#" aria-label="VoiceQA home"><span class="brand-mark">VQ</span><span>VoiceQA</span></a>
+    <a class="brand" href="#" id="brand-home" aria-label="VoiceQA dashboard"><span class="brand-mark">VQ</span><span>VoiceQA</span></a>
     <nav aria-label="Main navigation">
-      <button class="nav-item active" data-view="new"><span>⌁</span> New evaluation</button>
+      <button class="nav-item active" data-view="dashboard"><span>⌂</span> Dashboard</button>
+      <button class="nav-item" data-view="new"><span>⌁</span> New evaluation</button>
       <button class="nav-item" data-view="history"><span>◫</span> Evaluations</button>
       <button class="nav-item" data-view="rubric"><span>✓</span> QA rubric</button>
       <button class="nav-item" data-view="settings"><span>⚙</span> Settings</button>
@@ -41,9 +42,25 @@
   </aside>
 
   <main>
-    <header class="topbar"><div><p class="eyebrow">QUALITY OPERATIONS</p><h1 id="page-title">New voice evaluation</h1></div><div class="top-actions"><span class="system-status"><i></i> Systems ready</span><button class="icon-btn" id="help-button" aria-label="Open help">?</button></div></header>
+    <header class="topbar"><div><p class="eyebrow">QUALITY OPERATIONS</p><h1 id="page-title">VoiceQA Dashboard</h1></div><div class="top-actions"><span class="system-status"><i></i> Systems ready</span><button class="icon-btn" id="help-button" aria-label="Open help">?</button></div></header>
 
-    <section id="new-view" class="view active">
+    <section id="dashboard-view" class="view active">
+      <section class="dashboard-hero">
+        <div><p class="eyebrow">QUALITY OPERATIONS</p><h2>Evaluate calls with clarity.</h2><p>Upload a recording, review the QA score, and track quality over time.</p></div>
+        <button class="hero-action" id="dashboard-new-evaluation" type="button"><span class="hero-action-icon">↑</span><span><strong>Start a new evaluation</strong><small>Upload a call recording · maximum 25 MB</small></span><b>→</b></button>
+      </section>
+      <div class="dashboard-metrics">
+        <article class="metric-card"><span class="metric-icon">▥</span><div><small>Average QA</small><strong id="dashboard-average">—</strong><p>Across saved evaluations</p></div></article>
+        <article class="metric-card"><span class="metric-icon">▤</span><div><small>Evaluations</small><strong id="dashboard-count">—</strong><p>Saved calls</p></div></article>
+        <article class="metric-card"><span class="metric-icon">✓</span><div><small>Pass rate</small><strong id="dashboard-pass-rate">—</strong><p>Meeting the 85% standard</p></div></article>
+      </div>
+      <div class="dashboard-grid">
+        <section class="panel trend-card"><div class="panel-head"><div><h2>Recent quality trend</h2><p>QA percentage for the latest evaluations</p></div></div><div class="trend-bars" id="dashboard-trend"><span class="dashboard-empty">No saved evaluations yet.</span></div></section>
+        <section class="panel recent-card"><div class="panel-head"><div><h2>Recent evaluations</h2><p>Your latest saved calls</p></div><button class="secondary-button" id="dashboard-view-all">View all →</button></div><div class="table-wrap"><table><thead><tr><th>Agent</th><th>Campaign</th><th>QA Percentage</th><th>Status</th><th>Date</th></tr></thead><tbody id="dashboard-history"><tr><td colspan="5" class="empty-cell">No saved evaluations yet.</td></tr></tbody></table></div></section>
+      </div>
+    </section>
+
+    <section id="new-view" class="view">
       <div class="workflow-grid">
         <section class="panel upload-panel">
           <div class="panel-head"><div><span class="step-no">01</span><h2>Add recording</h2></div><span class="required">Required</span></div>
