@@ -10,6 +10,8 @@ A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation s
 4. Apply all 30 PDF checks in the original 8-section sequence.
 5. Review evidence and save the dynamic scorecard to Supabase. N/A checks are excluded from the available maximum.
 
+The speaker transcript is editable: click a speaker label to switch between Agent and Caller, add missing lines, remove incorrect lines and correct the text before saving.
+
 ## Local setup
 
 Copy `.env.example` to `.env.local` and configure:
