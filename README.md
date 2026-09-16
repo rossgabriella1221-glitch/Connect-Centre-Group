@@ -12,6 +12,8 @@ A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation s
 
 The speaker transcript is editable: click a speaker label to switch between Agent and Caller, add missing lines, remove incorrect lines and correct the text before saving.
 
+Every QA item score is editable before saving. Manual changes immediately recalculate the section total, overall score, available maximum and percentage while keeping the allowed values for that rubric item.
+
 ## Local setup
 
 Copy `.env.example` to `.env.local` and configure:
