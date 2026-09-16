@@ -20,6 +20,9 @@ create table if not exists public.evaluations (
   created_at timestamptz not null default now()
 );
 
+create index if not exists evaluations_owner_id_idx on public.evaluations(owner_id);
+create index if not exists evaluations_created_at_idx on public.evaluations(created_at desc);
+
 alter table public.evaluations enable row level security;
 grant select, insert, update, delete on public.evaluations to authenticated;
 
