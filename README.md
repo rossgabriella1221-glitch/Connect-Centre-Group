@@ -12,6 +12,8 @@ A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation s
 
 The completed scorecard focuses on QA questions and editable scores. The separate English speaker transcript editing panel is not displayed.
 
+The transcript highlights genuine compliment context in green and shows a short compliment summary. Insulting, abusive, threatening, discriminatory or clearly disrespectful turns are highlighted in red only within the transcript.
+
 Every QA item score is editable before saving. Manual changes immediately recalculate the section total, overall score, available maximum and percentage while keeping the allowed values for that rubric item.
 
 The visible scorecard shows only each rubric question and its editable score. AI comments and transcript evidence are retained in the evaluation data but hidden from the scorecard.
