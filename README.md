@@ -41,3 +41,5 @@ Run `npm test` to verify the workbook scoring model. Deploy the repository to Ve
 - Every evaluation endpoint requires a verified Supabase user session; the browser retains it only for the active tab.
 - Audio is capped at 25 MB and accepted only as audio input.
 - CRM-only checks are marked for manual verification when the call recording cannot establish them.
+- The Calm Modern dashboard summarizes average QA, pass rate, recent evaluations and quality trends.
+- After an evaluation is saved, the new-evaluation form resets automatically for the next call.
