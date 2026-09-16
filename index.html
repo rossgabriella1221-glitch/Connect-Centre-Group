@@ -48,7 +48,7 @@
         </section>
 
         <section class="panel process-panel">
-          <div class="panel-head"><div><span class="step-no">03</span><h2>Evaluation pipeline</h2></div><span class="rubric-badge">40 checks · 200 points</span></div>
+          <div class="panel-head"><div><span class="step-no">03</span><h2>Evaluation pipeline</h2></div><span class="rubric-badge">30 checks · 150 points</span></div>
           <ol class="pipeline">
             <li class="current"><span>1</span><div><strong>Transcribe recording</strong><small>Capture speakers and dialogue</small></div></li>
             <li><span>2</span><div><strong>Translate to English</strong><small>Preserve meaning and context</small></div></li>
@@ -63,7 +63,7 @@
       <section id="results" class="results hidden">
         <div class="results-head"><div><p class="eyebrow">EVALUATION COMPLETE</p><h2>QA scorecard</h2></div><button id="save-button" class="secondary-button">Save evaluation</button></div>
         <div class="score-overview">
-          <div class="score-card"><div class="score-ring"><span id="score-percent">0%</span></div><div><span>Overall score</span><strong><b id="score-points">0</b> / 200</strong><small id="score-status">Review required</small></div></div>
+          <div class="score-card"><div class="score-ring"><span id="score-percent">0%</span></div><div><span>Overall score</span><strong><b id="score-points">0</b> / <b id="score-max">150</b></strong><small id="score-status">Review required</small></div></div>
           <div class="summary-card"><span>AI summary</span><p id="result-summary"></p></div>
           <div class="language-card"><span>Language</span><strong id="detected-language">—</strong><small>Translated to English</small></div>
         </div>
@@ -76,7 +76,7 @@
     <section id="settings-view" class="view"><div class="settings-grid"><div class="panel"><h2>Connections</h2><div class="connection"><span class="connection-icon github">GH</span><div><strong>GitHub</strong><small>Source and version control</small></div><span class="connected">Connected</span></div><div class="connection"><span class="connection-icon supabase">S</span><div><strong>Supabase</strong><small>Database and recording storage</small></div><span class="connected">Connected</span></div><div class="connection"><span class="connection-icon vercel">▲</span><div><strong>Vercel</strong><small>Hosting and server functions</small></div><span class="connected">Connected</span></div><label class="access-key">Dashboard access key<input id="access-key" type="password" autocomplete="current-password" placeholder="Enter access key" /><small>Kept only for this browser session.</small></label></div><div class="panel"><h2>Evaluation rules</h2><label class="setting-row"><span><strong>Auto-detect language</strong><small>Translate non-English calls before scoring</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Require evidence</strong><small>Show transcript support for every answer</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Flag critical misses</strong><small>Highlight starred workbook questions</small></span><input type="checkbox" checked /></label></div></div></section>
   </main>
 
-  <dialog id="help-dialog"><button class="dialog-close" id="help-close">×</button><p class="eyebrow">HOW IT WORKS</p><h2>Evaluate a call in four exact steps</h2><ol><li>Upload one voice recording.</li><li>Confirm the call and agent details.</li><li>VoiceQA transcribes, translates and scores all 40 checks in workbook order.</li><li>Review evidence, adjust any manual checks, and save the result.</li></ol><p>CRM-only checks are flagged for manual confirmation when the recording cannot prove them.</p></dialog>
+  <dialog id="help-dialog"><button class="dialog-close" id="help-close">×</button><p class="eyebrow">HOW IT WORKS</p><h2>Evaluate a call in four exact steps</h2><ol><li>Upload one voice recording.</li><li>Confirm the call and agent details.</li><li>VoiceQA transcribes, translates and scores all 30 checks in PDF order.</li><li>Review evidence, adjust any manual checks, and save the result.</li></ol><p>N/A items are excluded from the available maximum, matching the evaluation sample.</p></dialog>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
