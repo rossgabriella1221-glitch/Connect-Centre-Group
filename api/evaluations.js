@@ -25,6 +25,22 @@ export default async function handler(request, response) {
     return forward(upstream, response);
   }
 
+  if (request.method === "DELETE") {
+    const id = String(request.query?.id || "");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+      return response.status(400).json({ error: "A valid evaluation ID is required." });
+    }
+    const upstream = await fetch(`${url}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { ...headers, Prefer: "return=representation" }
+    });
+    const text = await upstream.text();
+    if (!upstream.ok) return response.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(text);
+    const deleted = text ? JSON.parse(text) : [];
+    if (!deleted.length) return response.status(404).json({ error: "Evaluation not found or you do not have permission to delete it." });
+    return response.status(200).json({ deleted: true, id });
+  }
+
   return response.status(405).json({ error: "Method not allowed" });
 }
 
