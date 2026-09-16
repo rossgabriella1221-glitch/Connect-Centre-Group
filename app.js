@@ -155,7 +155,7 @@ function selectFile(file) {
   player.classList.toggle('hidden', !file);
   $('#file-chip').classList.toggle('hidden', !file);
   dropzone.classList.toggle('hidden', Boolean(file));
-  $('#evaluate-button').disabled = !file;
+  updateEvaluateButton();
   $('#live-transcript').classList.add('hidden');
   $('#live-transcript-text').textContent = '';
   $('#transcript-status').textContent = 'Waiting to transcribe';
@@ -163,9 +163,16 @@ function selectFile(file) {
   else setMessage('Add a recording to continue.');
 }
 
+$('#ring-count').addEventListener('change', updateEvaluateButton);
+function updateEvaluateButton() {
+  $('#evaluate-button').disabled = !selectedFile || !$('#ring-count').value;
+  if (selectedFile && !$('#ring-count').value) setMessage('Select the number of rings before answer to continue.');
+}
+
 $('#evaluate-button').addEventListener('click', evaluate);
 async function evaluate() {
   if (!selectedFile) return;
+  if (!$('#ring-count').value) return setMessage('Select the number of rings before answer to continue.', true);
   setBusy(true);
   try {
     const data = new FormData();
@@ -188,7 +195,7 @@ async function evaluate() {
     const response = await authFetch('/api/evaluate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transcript: transcription.transcript })
+      body: JSON.stringify({ transcript: transcription.transcript, ringCount: $('#ring-count').value })
     });
     timers.forEach(clearTimeout);
     const payload = await response.json();
