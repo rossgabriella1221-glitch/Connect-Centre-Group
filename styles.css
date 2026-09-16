@@ -62,6 +62,8 @@ main{margin-left:248px;min-height:100vh}
 .primary-button b{color:var(--acid)}
 .primary-button:disabled{opacity:.42;cursor:not-allowed}
 .secondary-button{padding:10px 14px;background:#edf3f0;color:var(--green)}
+.delete-evaluation{border:1px solid #efc0ba;border-radius:8px;background:#fff7f5;color:var(--red);padding:7px 10px;font:700 12px "DM Sans";cursor:pointer}
+.delete-evaluation:hover{background:#ffebe7}.delete-evaluation:disabled{opacity:.55;cursor:wait}
 .form-message{text-align:center;color:var(--muted);font-size:12px;margin:11px 0 0}
 .results{margin-top:28px}
 .results-head{display:flex;justify-content:space-between;align-items:end;margin-bottom:16px}
