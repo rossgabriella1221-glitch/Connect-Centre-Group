@@ -16,6 +16,8 @@ Every QA item score is editable before saving. Manual changes immediately recalc
 
 The visible scorecard shows only each rubric question and its editable score. AI comments and transcript evidence are retained in the evaluation data but hidden from the scorecard.
 
+Evaluation history displays both the points score and the saved QA percentage.
+
 If Groq cannot satisfy the strict JSON scorecard schema on the first attempt, VoiceQA automatically retries once with deterministic settings and a flexible JSON response, then validates all 30 rubric IDs before displaying results.
 
 ## Local setup
