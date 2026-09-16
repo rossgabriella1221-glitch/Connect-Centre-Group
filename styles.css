@@ -97,6 +97,13 @@ main{margin-left:248px;min-height:100vh}
 .transcript-head button{border:1px solid #45665d;background:transparent;color:#dce9e5;border-radius:7px;padding:6px 9px;cursor:pointer}
 .transcript-head strong,.transcript-head small{display:block}
 .transcript-head small{color:#8eaaa1;font-size:10px;margin-top:3px}
+.transcript-actions{display:flex;gap:6px}
+.transcript-editor{display:grid;gap:10px}
+.transcript-turn{display:grid;grid-template-columns:66px 1fr 28px;gap:8px;align-items:start;background:#183a32;border:1px solid #34584f;border-radius:10px;padding:9px}
+.speaker-role{border:0;border-radius:7px;background:var(--acid);color:#17362e;padding:7px 5px;font:800 11px "DM Sans";cursor:pointer}
+.transcript-turn textarea{width:100%;resize:vertical;min-height:54px;border:0;border-radius:7px;background:#f5faf8;color:#18302a;padding:8px;font:500 12px/1.5 "DM Sans"}
+.remove-turn{border:0;background:transparent;color:#aac0b9;font-size:20px;cursor:pointer;padding:2px}
+.remove-turn:hover{color:#fff}
 .transcript-card p{white-space:pre-wrap;line-height:1.7;font-size:13px;color:#bdd0ca}
 .table-wrap{overflow:auto}
 table{width:100%;border-collapse:collapse}
