@@ -95,6 +95,8 @@ main{margin-left:248px;min-height:100vh}
 .transcript-card{position:sticky;top:135px;align-self:start;background:#112f28;color:#deece7;border-radius:15px;padding:20px;max-height:620px;overflow:auto}
 .transcript-head{display:flex;justify-content:space-between;align-items:center;position:sticky;top:-20px;background:#112f28;padding:2px 0 14px}
 .transcript-head button{border:1px solid #45665d;background:transparent;color:#dce9e5;border-radius:7px;padding:6px 9px;cursor:pointer}
+.transcript-head strong,.transcript-head small{display:block}
+.transcript-head small{color:#8eaaa1;font-size:10px;margin-top:3px}
 .transcript-card p{white-space:pre-wrap;line-height:1.7;font-size:13px;color:#bdd0ca}
 .table-wrap{overflow:auto}
 table{width:100%;border-collapse:collapse}
