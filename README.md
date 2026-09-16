@@ -10,7 +10,7 @@ A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation s
 4. Apply all 30 PDF checks in the original 8-section sequence.
 5. Review evidence and save the dynamic scorecard to Supabase. N/A checks are excluded from the available maximum.
 
-The speaker transcript is editable: click a speaker label to switch between Agent and Caller, add missing lines, remove incorrect lines and correct the text before saving.
+The completed scorecard focuses on QA questions and editable scores. The separate English speaker transcript editing panel is not displayed.
 
 Every QA item score is editable before saving. Manual changes immediately recalculate the section total, overall score, available maximum and percentage while keeping the allowed values for that rubric item.
 
