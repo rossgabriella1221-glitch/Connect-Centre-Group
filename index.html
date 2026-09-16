@@ -66,7 +66,6 @@
             <label>Campaign<input id="campaign" placeholder="Enter campaign" autocomplete="off" /></label>
             <label>Transaction ID<input id="transaction" placeholder="Enter transaction ID" autocomplete="off" /></label>
             <label>Source language<select id="language"><option value="auto">Detect automatically</option><option>English</option><option>Mandarin</option><option>Malay</option><option>Tamil</option><option>Spanish</option><option>French</option></select></label>
-            <label>Rings before answer<select id="ring-count" required><option value="">Select ring count</option><option value="1">1 ring</option><option value="2">2 rings</option><option value="3">3 rings</option><option value="4plus">4 or more rings</option><option value="unknown">Unable to confirm</option></select></label>
           </div>
         </section>
 
@@ -99,7 +98,7 @@
     <section id="settings-view" class="view"><div class="settings-grid"><div class="panel"><h2>Your account</h2><div class="account-card"><span class="connection-icon">✓</span><div><strong id="settings-user-email">Signed in</strong><small>Only your evaluations are visible to this account.</small></div></div><button class="secondary-button sign-out-button" id="sign-out" type="button">Sign out</button><p class="security-copy">Audio is processed temporarily and is not saved by VoiceQA. Transcripts are stored only when you select Save evaluation.</p></div><div class="panel"><h2>Evaluation rules</h2><label class="setting-row"><span><strong>Auto-detect language</strong><small>Translate non-English calls before scoring</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Require evidence</strong><small>Show transcript support for every answer</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Flag critical misses</strong><small>Highlight starred workbook questions</small></span><input type="checkbox" checked /></label></div></div></section>
   </main>
 
-  <dialog id="help-dialog"><button class="dialog-close" id="help-close">×</button><p class="eyebrow">HOW IT WORKS</p><h2>Evaluate a call in four exact steps</h2><ol><li>Upload one voice recording.</li><li>Confirm the call details and select the number of rings before answer.</li><li>VoiceQA transcribes, translates and scores all 30 checks in PDF order.</li><li>Review evidence, adjust any manual checks, and save the result.</li></ol><p>One to three rings pass the KPI. Four or more rings fail it. Unable to confirm is excluded for manual review.</p></dialog>
+  <dialog id="help-dialog"><button class="dialog-close" id="help-close">×</button><p class="eyebrow">HOW IT WORKS</p><h2>Evaluate a call in four exact steps</h2><ol><li>Upload one voice recording.</li><li>Confirm the call and agent details.</li><li>VoiceQA transcribes, translates and scores all 30 checks in PDF order.</li><li>Review evidence, adjust any manual checks, and save the result.</li></ol><p>N/A items are excluded from the available maximum, matching the evaluation sample.</p></dialog>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
