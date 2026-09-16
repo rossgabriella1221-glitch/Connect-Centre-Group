@@ -163,6 +163,8 @@ function selectFile(file) {
   $('#evaluate-button').disabled = !file;
   $('#live-transcript').classList.add('hidden');
   $('#live-transcript-text').textContent = '';
+  $('#compliment-summary').classList.add('hidden');
+  $('#compliment-summary').textContent = '';
   $('#transcript-status').textContent = 'Waiting to transcribe';
   if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Listen now, or start the evaluation to generate the transcript.'); }
   else setMessage('Add a recording to continue.');
@@ -222,9 +224,23 @@ function renderResults(evaluation) {
   $('#result-summary').textContent = evaluation.summary;
   $('#detected-language').textContent = evaluation.detected_language || 'English';
   const speakerTranscript = formatSpeakerTranscript(evaluation.english_transcript || evaluation.transcript);
-  $('#live-transcript-text').textContent = speakerTranscript;
+  renderTranscriptHighlights(speakerTranscript, evaluation);
   $('#transcript-status').textContent = 'Speaker labels ready';
   $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderTranscriptHighlights(transcript, evaluation) {
+  const turns = String(transcript).split(/\n+/).map(line => line.trim()).filter(Boolean);
+  const complimentLines = new Set((evaluation.compliment_line_numbers || []).map(Number));
+  const rudeLines = new Set((evaluation.rude_line_numbers || []).map(Number));
+  $('#live-transcript-text').innerHTML = turns.map((line, index) => {
+    const lineNumber = index + 1;
+    const tone = rudeLines.has(lineNumber) ? ' rude' : complimentLines.has(lineNumber) ? ' compliment' : '';
+    return `<p class="transcript-turn${tone}">${escapeHtml(line)}</p>`;
+  }).join('');
+  const summary = $('#compliment-summary');
+  summary.classList.toggle('hidden', !evaluation.compliment_detected);
+  summary.textContent = evaluation.compliment_detected ? `Compliment: ${evaluation.compliment_summary}` : '';
 }
 
 function renderScoreTotals(evaluation) {
