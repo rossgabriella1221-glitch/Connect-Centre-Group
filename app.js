@@ -223,6 +223,7 @@ function renderResults(evaluation) {
   $('#transcript').textContent = speakerTranscript;
   $('#live-transcript-text').textContent = speakerTranscript;
   $('#transcript-status').textContent = 'Speaker labels ready';
+  renderTranscriptEditor(speakerTranscript);
   $('#section-results').innerHTML = evaluation.sections.map((section, index) => `<details class="result-section" ${index === 0 ? 'open' : ''}><summary><span class="section-title"><strong>${escapeHtml(section.title)}</strong><small>${section.items.length} checks</small></span><span class="section-score">${section.score} / ${section.max}</span></summary>${section.items.map(item => `<div class="question-row"><div><p>${escapeHtml(item.text)}${item.critical ? '<span class="critical-tag">CRITICAL</span>' : ''}</p><small>${escapeHtml(item.comment || 'No comment')} ${item.evidence ? `· “${escapeHtml(item.evidence)}”` : ''}</small></div><span class="question-score ${item.score === 0 ? 'zero' : ''}">${item.score}/5</span></div>`).join('')}</details>`).join('');
   $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -248,12 +249,48 @@ async function loadHistory() {
 $('#refresh-history').addEventListener('click', loadHistory);
 
 $('#rubric-list').innerHTML = rubric.map((section, sectionIndex) => `<section class="rubric-section"><h3>${String(sectionIndex + 1).padStart(2,'0')} · ${escapeHtml(section.title)} <span class="section-score">${section.items.length * 5} pts</span></h3><ul>${section.items.map((item, i) => `<li><b>${i + 1}</b><span>${escapeHtml(item.text)}${item.critical ? '<span class="critical-tag">CRITICAL</span>' : ''}</span></li>`).join('')}</ul></section>`).join('');
-$('#copy-transcript').addEventListener('click', async () => { await navigator.clipboard.writeText($('#transcript').textContent); $('#copy-transcript').textContent = 'Copied'; setTimeout(() => $('#copy-transcript').textContent = 'Copy', 1200); });
+$('#copy-transcript').addEventListener('click', async () => { await navigator.clipboard.writeText(syncTranscriptEdits()); $('#copy-transcript').textContent = 'Copied'; setTimeout(() => $('#copy-transcript').textContent = 'Copy', 1200); });
+$('#add-transcript-turn').addEventListener('click', () => { addTranscriptRow('Agent', ''); syncTranscriptEdits(); });
 $('#help-button').addEventListener('click', () => $('#help-dialog').showModal());
 $('#help-close').addEventListener('click', () => $('#help-dialog').close());
 
 function formatBytes(bytes) { return `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
 function formatSpeakerTranscript(value = '') { return String(value).trim().replace(/\n+\s*(?=(?:Agent|Caller)\s*-\s*)/g, '\n\n'); }
+function parseSpeakerTranscript(value = '') {
+  const turns = [];
+  const pattern = /(?:^|\n+)\s*(Agent|Caller)\s*-\s*([\s\S]*?)(?=\n+\s*(?:Agent|Caller)\s*-|$)/gi;
+  for (const match of String(value).matchAll(pattern)) turns.push({ role: titleCase(match[1]), text: match[2].trim() });
+  return turns.length ? turns : [{ role: 'Agent', text: String(value).trim() }];
+}
+function renderTranscriptEditor(value) {
+  $('#transcript-editor').innerHTML = '';
+  parseSpeakerTranscript(value).forEach(turn => addTranscriptRow(turn.role, turn.text));
+  syncTranscriptEdits();
+}
+function addTranscriptRow(role, text) {
+  const row = document.createElement('div');
+  row.className = 'transcript-turn';
+  row.innerHTML = `<button type="button" class="speaker-role" data-role="${role}" title="Click to change speaker">${role}</button><textarea rows="2" aria-label="${role} transcript">${escapeHtml(text)}</textarea><button type="button" class="remove-turn" aria-label="Delete transcript line">×</button>`;
+  row.querySelector('.speaker-role').addEventListener('click', event => {
+    const next = event.currentTarget.dataset.role === 'Agent' ? 'Caller' : 'Agent';
+    event.currentTarget.dataset.role = next;
+    event.currentTarget.textContent = next;
+    row.querySelector('textarea').setAttribute('aria-label', `${next} transcript`);
+    syncTranscriptEdits();
+  });
+  row.querySelector('textarea').addEventListener('input', syncTranscriptEdits);
+  row.querySelector('.remove-turn').addEventListener('click', () => { row.remove(); syncTranscriptEdits(); });
+  $('#transcript-editor').appendChild(row);
+  row.querySelector('textarea').focus();
+}
+function syncTranscriptEdits() {
+  const value = $$('.transcript-turn').map(row => `${row.querySelector('.speaker-role').dataset.role} - ${row.querySelector('textarea').value.trim()}`).filter(line => !/ - $/.test(line)).join('\n\n');
+  $('#transcript').textContent = value;
+  $('#live-transcript-text').textContent = value;
+  if (latestEvaluation) latestEvaluation.english_transcript = value;
+  return value;
+}
+function titleCase(value = '') { return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase(); }
 function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 
 if (document.modelContext?.registerTool) {
