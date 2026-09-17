@@ -214,7 +214,7 @@ async function transcribeRecording() {
       data.set('part', String(index + 1));
       data.set('parts', String(parts.length));
       const transcriptionResponse = await authFetch('/api/transcribe', { method: 'POST', body: data });
-      const transcription = await transcriptionResponse.json();
+      const transcription = await readApiResponse(transcriptionResponse);
       if (!transcriptionResponse.ok) throw new Error(transcription.error || `Transcription failed at part ${index + 1}.`);
       if (transcription.transcript?.trim()) transcripts.push(transcription.transcript.trim());
     }
@@ -250,7 +250,8 @@ async function prepareAudioParts(file) {
         const source = buffer.getChannelData(channel);
         for (let frame = startFrame; frame < endFrame; frame += 1) mono[frame - startFrame] += source[frame] / buffer.numberOfChannels;
       }
-      parts.push({ blob: encodeWav(mono, buffer.sampleRate), name: `${file.name.replace(/\.[^.]+$/, '')}-part-${part}.wav` });
+      const speechSamples = resampleAudio(mono, buffer.sampleRate, 16000);
+      parts.push({ blob: encodeWav(speechSamples, 16000), name: `${file.name.replace(/\.[^.]+$/, '')}-part-${part}.wav` });
     }
     return parts;
   } catch (error) {
@@ -258,6 +259,29 @@ async function prepareAudioParts(file) {
     return [{ blob: file, name: file.name }];
   } finally {
     await context.close().catch(() => {});
+  }
+}
+
+function resampleAudio(samples, sourceRate, targetRate) {
+  if (sourceRate === targetRate) return samples;
+  const output = new Float32Array(Math.ceil(samples.length * targetRate / sourceRate));
+  const ratio = sourceRate / targetRate;
+  for (let index = 0; index < output.length; index += 1) {
+    const sourcePosition = index * ratio;
+    const before = Math.floor(sourcePosition);
+    const after = Math.min(before + 1, samples.length - 1);
+    const weight = sourcePosition - before;
+    output[index] = samples[before] * (1 - weight) + samples[after] * weight;
+  }
+  return output;
+}
+
+async function readApiResponse(response) {
+  const text = await response.text();
+  try { return JSON.parse(text); }
+  catch {
+    if (response.status === 413) return { error: 'This audio section was too large to upload. Please refresh and try again.' };
+    return { error: response.ok ? 'The server returned an unreadable response.' : `The transcription service could not complete this request (${response.status}).` };
   }
 }
 
