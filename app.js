@@ -197,18 +197,29 @@ async function transcribeRecording() {
   if (!selectedFile) return;
   setTranscribeBusy(true);
   try {
-    const data = new FormData();
-    data.set('audio', selectedFile);
-    data.set('language', $('#language').value);
     setPipeline(0);
     $('#live-transcript').classList.remove('hidden');
     $('#transcript-status').textContent = 'Transcribing…';
     $('#live-transcript-text').textContent = 'VoiceQA is listening to the recording.';
-
-    const transcriptionResponse = await authFetch('/api/transcribe', { method: 'POST', body: data });
-    const transcription = await transcriptionResponse.json();
-    if (!transcriptionResponse.ok) throw new Error(transcription.error || 'Transcription failed.');
-    currentTranscript = transcription.transcript;
+    const parts = await prepareAudioParts(selectedFile);
+    const transcripts = [];
+    for (let index = 0; index < parts.length; index += 1) {
+      $('#transcript-status').textContent = parts.length > 1 ? `Transcribing part ${index + 1} of ${parts.length}…` : 'Transcribing…';
+      $('#live-transcript-text').textContent = parts.length > 1
+        ? `VoiceQA is processing the complete recording in ${parts.length} sections.\n\nCompleted ${index} of ${parts.length}.`
+        : 'VoiceQA is listening to the recording.';
+      const data = new FormData();
+      data.set('audio', parts[index].blob, parts[index].name);
+      data.set('language', $('#language').value);
+      data.set('part', String(index + 1));
+      data.set('parts', String(parts.length));
+      const transcriptionResponse = await authFetch('/api/transcribe', { method: 'POST', body: data });
+      const transcription = await transcriptionResponse.json();
+      if (!transcriptionResponse.ok) throw new Error(transcription.error || `Transcription failed at part ${index + 1}.`);
+      if (transcription.transcript?.trim()) transcripts.push(transcription.transcript.trim());
+    }
+    currentTranscript = transcripts.join('\n\n');
+    if (!currentTranscript) throw new Error('No speech was detected in the recording.');
     $('#live-transcript-text').textContent = currentTranscript;
     $('#transcript-status').textContent = 'Transcript ready';
     setPipeline(1);
@@ -220,6 +231,49 @@ async function transcribeRecording() {
     setPipeline(0);
     setMessage(error.message, true);
   } finally { setTranscribeBusy(false); }
+}
+
+async function prepareAudioParts(file) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return [{ blob: file, name: file.name }];
+  const context = new AudioContextClass();
+  try {
+    const buffer = await context.decodeAudioData(await file.arrayBuffer());
+    if (buffer.duration <= 75) return [{ blob: file, name: file.name }];
+    const partSeconds = 60;
+    const parts = [];
+    for (let startSeconds = 0, part = 1; startSeconds < buffer.duration; startSeconds += partSeconds, part += 1) {
+      const startFrame = Math.floor(startSeconds * buffer.sampleRate);
+      const endFrame = Math.min(buffer.length, Math.floor((startSeconds + partSeconds) * buffer.sampleRate));
+      const mono = new Float32Array(endFrame - startFrame);
+      for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+        const source = buffer.getChannelData(channel);
+        for (let frame = startFrame; frame < endFrame; frame += 1) mono[frame - startFrame] += source[frame] / buffer.numberOfChannels;
+      }
+      parts.push({ blob: encodeWav(mono, buffer.sampleRate), name: `${file.name.replace(/\.[^.]+$/, '')}-part-${part}.wav` });
+    }
+    return parts;
+  } catch (error) {
+    console.warn('[VoiceQA] Could not split audio; using the original recording.', error);
+    return [{ blob: file, name: file.name }];
+  } finally {
+    await context.close().catch(() => {});
+  }
+}
+
+function encodeWav(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeText = (offset, text) => [...text].forEach((character, index) => view.setUint8(offset + index, character.charCodeAt(0)));
+  writeText(0, 'RIFF'); view.setUint32(4, 36 + samples.length * 2, true); writeText(8, 'WAVE');
+  writeText(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  writeText(36, 'data'); view.setUint32(40, samples.length * 2, true);
+  for (let index = 0; index < samples.length; index += 1) {
+    const sample = Math.max(-1, Math.min(1, samples[index]));
+    view.setInt16(44 + index * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
 }
 
 $('#grade-button').addEventListener('click', gradeScorecard);
