@@ -4,9 +4,11 @@ A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation s
 
 ## Workflow
 
-1. Upload one call recording (MP3, WAV, M4A, WEBM or OGG; max 25 MB), play it when needed and enter the call details.
-2. Select **Grade scorecard**. VoiceQA processes the recording privately, translates when needed and applies all 30 PDF checks in the original 8-section sequence. The transcript is not displayed.
-3. Review and save only the dynamic scorecard to Supabase. The temporary transcript is neither displayed nor included in new saved evaluations. N/A checks are excluded from the available maximum. If grading fails after the recording has been processed, VoiceQA can retry grading without processing the audio again.
+1. Upload one call recording (MP3, WAV, M4A, WEBM or OGG; max 25 MB) and play it in the dashboard.
+2. Transcribe the complete call with the accuracy-focused Whisper Large v3 model and show it as soon as it is ready. VoiceQA uses the selected language, checks timestamped segments for a missing opening greeting, and automatically retries once when needed.
+3. Translate the transcript to English when needed.
+4. Apply all 30 PDF checks in the original 8-section sequence.
+5. Review evidence and save the dynamic scorecard to Supabase. N/A checks are excluded from the available maximum.
 
 The completed scorecard focuses on QA questions and editable scores. The separate English speaker transcript editing panel is not displayed.
 
@@ -14,11 +16,7 @@ Every QA item score is editable before saving. Manual changes immediately recalc
 
 The visible scorecard shows only each rubric question and its editable score. AI comments and transcript evidence are retained in the evaluation data but hidden from the scorecard.
 
-Each completed scorecard includes a concise call evaluation summary covering the caller's reason, the agent's strongest performance, the main improvement needed and the overall QA outcome.
-
 Evaluation history displays both the points score and the saved QA percentage.
-
-The header includes a light/dark mode switch. The selected appearance is remembered on the device.
 
 VoiceQA requests a marker-based plain-text evaluation, parses and validates all 30 rubric IDs itself, and retries once only when the returned content is incomplete. This avoids provider-side JSON validation failures on longer calls.
 
