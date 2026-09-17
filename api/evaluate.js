@@ -16,14 +16,14 @@ export default async function handler(request, response) {
 
     console.log("[api/evaluate] scoring started", { transcriptCharacters: transcript.length, checks: flatRubric.length });
     let scoringResponse = await requestScorecard(transcript, false);
-    if (!scoringResponse.ok) throw new Error(formatProviderError("Evaluation", await providerFailure(scoringResponse)));
+    if (!scoringResponse.ok) return sendProviderFailure(response, "Evaluation", await providerFailure(scoringResponse));
     let parsed;
     try {
       parsed = parseAndValidate(await scoringResponse.json());
     } catch (firstError) {
       console.warn("[api/evaluate] response validation failed; retrying compact response", { error: firstError.message });
       scoringResponse = await requestScorecard(transcript, true);
-      if (!scoringResponse.ok) throw new Error(formatProviderError("Evaluation retry", await providerFailure(scoringResponse)));
+      if (!scoringResponse.ok) return sendProviderFailure(response, "Evaluation retry", await providerFailure(scoringResponse));
       parsed = parseAndValidate(await scoringResponse.json());
     }
     parsed.results = parsed.results.map(item => ({ ...item, comment: "", evidence: "" }));
@@ -44,8 +44,9 @@ async function requestScorecard(transcript, retry) {
     body: JSON.stringify({
       model: EVALUATION_MODEL,
       messages: [{ role: "system", content: system }, { role: "user", content: JSON.stringify({ transcript, rubric: flatRubric }) }],
+      response_format: { type: "json_object" },
       temperature: 0,
-      max_completion_tokens: 6000
+      max_completion_tokens: 3000
     })
   });
 }
@@ -80,7 +81,23 @@ async function providerFailure(providerResponse) {
     const payload = await providerResponse.json();
     detail = payload?.error?.message || "";
   } catch {}
-  return { status: providerResponse.status, detail };
+  const headerDelay = Number(providerResponse.headers.get("retry-after"));
+  const detailDelay = Number(detail.match(/try again in\s+([\d.]+)s/i)?.[1]);
+  const retryAfter = Number.isFinite(headerDelay) && headerDelay > 0
+    ? Math.ceil(headerDelay)
+    : Number.isFinite(detailDelay) ? Math.ceil(detailDelay) : 30;
+  return { status: providerResponse.status, detail, retryAfter };
+}
+
+function sendProviderFailure(response, stage, failure) {
+  if (failure.status === 429) {
+    console.warn("[api/evaluate] provider rate limited", { stage, retryAfter: failure.retryAfter });
+    return response.status(429).json({
+      error: `Groq is temporarily busy. VoiceQA will retry in ${failure.retryAfter} seconds.`,
+      retryAfter: failure.retryAfter
+    });
+  }
+  throw new Error(formatProviderError(stage, failure));
 }
 
 function formatProviderError(stage, failure) {
