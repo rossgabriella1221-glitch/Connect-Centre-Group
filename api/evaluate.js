@@ -19,12 +19,12 @@ export default async function handler(request, response) {
     if (!scoringResponse.ok) return sendProviderFailure(response, "Evaluation", await providerFailure(scoringResponse));
     let parsed;
     try {
-      parsed = parseAndValidate(await scoringResponse.json());
+      parsed = parseAndValidate(await scoringResponse.json(), transcript);
     } catch (firstError) {
       console.warn("[api/evaluate] response validation failed; retrying compact response", { error: firstError.message });
       scoringResponse = await requestScorecard(transcript, true);
       if (!scoringResponse.ok) return sendProviderFailure(response, "Evaluation retry", await providerFailure(scoringResponse));
-      parsed = parseAndValidate(await scoringResponse.json());
+      parsed = parseAndValidate(await scoringResponse.json(), transcript);
     }
     parsed.results = parsed.results.map(item => ({ ...item, comment: "", evidence: "" }));
     const evaluation = calculate(parsed.results);
@@ -37,33 +37,56 @@ export default async function handler(request, response) {
 }
 
 async function requestScorecard(transcript, retry) {
-  const system = `You are a contact-centre QA evaluator. Return one compact valid JSON object and no other text. Translate when needed. Keep english_transcript complete and format every turn as "Agent - ..." or "Caller - ..." with blank lines between turns. Infer roles from the conversation, not by alternating. Score every rubric item in order. Return results with only id and score. Allowed scores: standard 0/5, documentation 1/5, rating 1-5, and na only for eligible checks. CRM-only evidence that cannot be heard scores 1. Required keys: detected_language, english_transcript, summary, results.${retry ? " This is a retry: be especially strict about valid JSON syntax and include all rubric ids." : ""}`;
+  const system = `You are a contact-centre QA evaluator. Do not return JSON or Markdown. Return plain text using these exact markers:
+LANGUAGE: detected language
+SUMMARY: one short sentence
+TRANSCRIPT_START
+Agent - complete English speech
+
+Caller - complete English speech
+TRANSCRIPT_END
+SCORES_START
+g1|5
+...one line for every rubric id in the supplied order...
+SCORES_END
+
+Translate the complete transcript to English when needed. Put a blank line between every speaker turn. Infer Agent and Caller roles from meaning, not by alternating. Allowed scores: standard 0 or 5, documentation 1 or 5, rating 1 to 5, and na only for eligible checks. CRM-only evidence that cannot be heard scores 1. Do not omit any spoken content or rubric id.${retry ? " This is a retry: use every marker exactly and include all 30 rubric ids." : ""}`;
   return fetch(`${GROQ_API_URL}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: EVALUATION_MODEL,
       messages: [{ role: "system", content: system }, { role: "user", content: JSON.stringify({ transcript, rubric: flatRubric }) }],
-      response_format: { type: "json_object" },
       temperature: 0,
-      max_completion_tokens: 3000
+      max_completion_tokens: 3500
     })
   });
 }
 
-function parseAndValidate(payload) {
-  const parsed = parseScorecard(payload.choices?.[0]?.message?.content);
+function parseAndValidate(payload, originalTranscript) {
+  const parsed = parseScorecard(payload.choices?.[0]?.message?.content, originalTranscript);
   validateScorecard(parsed);
   return parsed;
 }
 
-function parseScorecard(content = "") {
-  const raw = String(content).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  const cleaned = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
-  try { return JSON.parse(cleaned || "{}"); }
-  catch { throw new Error("The evaluation retry returned invalid JSON. Please try the evaluation again."); }
+function parseScorecard(content = "", originalTranscript = "") {
+  const raw = String(content).trim().replace(/^```(?:text)?\s*/i, "").replace(/\s*```$/, "");
+  const detectedLanguage = raw.match(/^LANGUAGE:\s*(.+)$/mi)?.[1]?.trim();
+  const summary = raw.match(/^SUMMARY:\s*(.+)$/mi)?.[1]?.trim();
+  const englishTranscript = extractSection(raw, "TRANSCRIPT_START", "TRANSCRIPT_END") || originalTranscript;
+  const scoreBlock = extractSection(raw, "SCORES_START", "SCORES_END");
+  const results = flatRubric.flatMap(item => {
+    const match = scoreBlock.match(new RegExp(`^${item.id}\\s*[|:=]\\s*(na|[0-5])\\s*$`, "mi"));
+    return match ? [{ id: item.id, score: match[1].toLowerCase() }] : [];
+  });
+  return { detected_language: detectedLanguage, english_transcript: englishTranscript, summary, results };
+}
+
+function extractSection(content, startMarker, endMarker) {
+  const start = content.indexOf(startMarker);
+  const end = content.indexOf(endMarker);
+  if (start < 0 || end <= start) return "";
+  return content.slice(start + startMarker.length, end).trim();
 }
 
 function validateScorecard(parsed) {
