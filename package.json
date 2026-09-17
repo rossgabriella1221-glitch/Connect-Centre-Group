@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "check": "node --check app.js && node --check api/transcribe.js && node --check api/evaluate.js && node --check api/evaluations.js && node --check api/account-setup.js && node --check lib/auth.js",
+    "check": "node --check app.js && node --check api/transcribe.js && node --check api/speakers.js && node --check api/evaluate.js && node --check api/evaluations.js && node --check api/account-setup.js && node --check lib/auth.js",
     "dev": "npx vercel dev"
   },
   "engines": { "node": ">=20" }
