@@ -61,8 +61,6 @@ main{margin-left:248px;min-height:100vh}
 .primary-button{width:100%;padding:14px 17px;background:var(--green);color:white;display:flex;justify-content:space-between}
 .primary-button b{color:var(--acid)}
 .primary-button:disabled{opacity:.42;cursor:not-allowed}
-.action-stack{display:grid;gap:10px}
-.grade-button{background:var(--teal)}
 .secondary-button{padding:10px 14px;background:#edf3f0;color:var(--green)}
 .delete-evaluation{border:1px solid #efc0ba;border-radius:8px;background:#fff7f5;color:var(--red);padding:7px 10px;font:700 12px "DM Sans";cursor:pointer}
 .delete-evaluation:hover{background:#ffebe7}.delete-evaluation:disabled{opacity:.55;cursor:wait}
@@ -205,16 +203,6 @@ body:not(.auth-locked)>.auth-screen{display:none}
 .security-copy{line-height:1.5}
 .audio-player{display:block;width:100%;margin-top:14px;height:42px}
 .live-transcript{margin-top:14px;border:1px solid #cfe0da;border-radius:12px;background:#f7fbf9;padding:16px}
-
-[data-theme="dark"]{color-scheme:dark;--ink:#edf7f3;--muted:#9fb3ac;--line:#365149;--paper:#0c1714;--panel:#14241f;--green:#1f5a4a;--teal:#72cbb1;--red:#ff8c82;--amber:#f0c466;--shadow:0 14px 40px rgba(0,0,0,.25)}
-[data-theme="dark"] .topbar{background:rgba(12,23,20,.92)}
-[data-theme="dark"] .icon-btn,[data-theme="dark"] .form-grid input,[data-theme="dark"] .form-grid select,[data-theme="dark"] .score-overview>div,[data-theme="dark"] .result-section,[data-theme="dark"] .rubric-section,[data-theme="dark"] dialog{background:var(--panel);color:var(--ink)}
-[data-theme="dark"] .dropzone,[data-theme="dark"] .live-transcript,[data-theme="dark"] .question-score-select{background:#192d27;color:var(--ink)}
-[data-theme="dark"] .dropzone:hover,[data-theme="dark"] .dropzone.drag,[data-theme="dark"] .secondary-button,[data-theme="dark"] .connection-icon,[data-theme="dark"] .metric-icon{background:#203930;color:#b9f3dd}
-[data-theme="dark"] .score-ring:before{background:var(--panel)}
-[data-theme="dark"] .question-row,[data-theme="dark"] .rubric-section li,[data-theme="dark"] th,[data-theme="dark"] td{border-color:#2b443d}
-[data-theme="dark"] .delete-evaluation,[data-theme="dark"] .question-score-select.zero{background:#3a2323;color:#ffaaa2;border-color:#70413e}
-[data-theme="dark"] .auth-card{background:var(--panel);color:var(--ink)}
 .live-transcript>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .live-transcript strong{font:700 14px Manrope}
 .live-transcript span{font-size:11px;font-weight:700;color:var(--teal);background:#e7f4ef;border-radius:999px;padding:5px 8px}
@@ -234,9 +222,3 @@ main{margin:0}
 .topbar h1{font-size:22px}
 .rubric-list{grid-template-columns:1fr}
 }
-[data-theme="dark"] .live-transcript span{background:#24463b;color:#a9ecd6}
-[data-theme="dark"] .live-transcript p{color:#d4e4de}
-[data-theme="dark"] .auth-card input{background:#192d27;color:var(--ink);border-color:var(--line)}
-[data-theme="dark"] .hero-action{background:#1a3029;color:var(--ink)}
-[data-theme="dark"] .status-pill.pass{background:#1d402f;color:#9ee0b3}
-[data-theme="dark"] .status-pill.review{background:#40351e;color:#f0c466}
