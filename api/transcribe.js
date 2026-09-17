@@ -24,13 +24,15 @@ export default async function handler(request, response) {
 
     const selectedLanguage = String(form.get("language") || "auto").toLowerCase();
     const language = LANGUAGE_CODES[selectedLanguage];
+    const part = Math.max(1, Number(form.get("part")) || 1);
+    const parts = Math.max(1, Number(form.get("parts")) || 1);
     const filename = audio.name || "recording.mp3";
-    let result = await transcribe(audio, filename, language, false);
+    let result = await transcribe(audio, filename, language, false, part, parts);
     let retriedOpening = false;
 
-    if (needsOpeningRetry(result)) {
+    if (part === 1 && needsOpeningRetry(result)) {
       retriedOpening = true;
-      const retry = await transcribe(audio, filename, language, true);
+      const retry = await transcribe(audio, filename, language, true, part, parts);
       result = chooseBetterOpening(result, retry);
     }
 
@@ -39,7 +41,11 @@ export default async function handler(request, response) {
     console.log("[api/transcribe] completed", {
       characters: transcript.length,
       firstSegmentStart: getFirstSegmentStart(result),
+      lastSegmentEnd: getLastSegmentEnd(result),
+      duration: Number(result.duration) || null,
       language: language || "auto",
+      part,
+      parts,
       retriedOpening
     });
     return response.status(200).json({ transcript });
@@ -48,7 +54,7 @@ export default async function handler(request, response) {
   }
 }
 
-async function transcribe(audio, filename, language, openingRetry) {
+async function transcribe(audio, filename, language, openingRetry, part, parts) {
   const transcriptionForm = new FormData();
   transcriptionForm.set("file", audio, filename);
   transcriptionForm.set("model", "whisper-large-v3");
@@ -56,9 +62,10 @@ async function transcribe(audio, filename, language, openingRetry) {
   transcriptionForm.set("timestamp_granularities[]", "segment");
   transcriptionForm.set("temperature", "0");
   if (language) transcriptionForm.set("language", language);
+  const sectionContext = parts > 1 ? ` This is section ${part} of ${parts}. Transcribe every spoken word in this section from its beginning through its end.` : "";
   transcriptionForm.set("prompt", openingRetry
     ? "Start at the first spoken syllable after any ringing or silence. Do not omit the opening greeting, company name, agent introduction, or offer of assistance. Transcribe the entire contact-centre call through the final spoken word exactly as heard."
-    : "This is a contact-centre telephone call between an agent and a caller. Include the very first spoken words after any ringing or silence, especially the agent's greeting and introduction. Continue through the final spoken word. Preserve names, numbers, questions, answers, and closing statements exactly as heard.");
+    : `This is a contact-centre telephone call between an agent and a caller.${sectionContext} Include all dialogue, names, numbers, questions, answers, and closing statements exactly as heard.`);
 
   const upstream = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
     method: "POST",
@@ -93,6 +100,11 @@ function hasOpeningGreeting(text) {
 function getFirstSegmentStart(result) {
   const firstStart = Number(result.segments?.[0]?.start);
   return Number.isFinite(firstStart) ? firstStart : null;
+}
+
+function getLastSegmentEnd(result) {
+  const lastEnd = Number(result.segments?.at(-1)?.end);
+  return Number.isFinite(lastEnd) ? lastEnd : null;
 }
 
 async function providerError(upstream) {
