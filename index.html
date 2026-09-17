@@ -70,10 +70,6 @@
           </label>
           <div id="file-chip" class="file-chip hidden"><div><span class="play-dot">▶</span><div><strong id="file-name"></strong><span id="file-size"></span></div></div><button id="remove-file" aria-label="Remove file">×</button></div>
           <audio id="audio-player" class="audio-player hidden" controls preload="metadata"></audio>
-          <section id="live-transcript" class="live-transcript hidden" aria-live="polite">
-            <div><strong>Speaker transcript</strong><span id="transcript-status">Waiting to transcribe</span></div>
-            <p id="live-transcript-text"></p>
-          </section>
         </section>
 
         <section class="panel details-panel">
@@ -89,12 +85,10 @@
         <section class="panel process-panel">
           <div class="panel-head"><div><span class="step-no">03</span><h2>Complete evaluation</h2></div><span class="rubric-badge">30 checks · 150 points</span></div>
           <ol class="pipeline">
-            <li class="current"><span>1</span><div><strong>Create transcript</strong><small>Complete this first and review the text</small></div></li>
-            <li><span>2</span><div><strong>Grade scorecard</strong><small>Apply all 30 QA checks</small></div></li>
+            <li class="current"><span>1</span><div><strong>Grade scorecard</strong><small>Listen privately and apply all 30 QA checks</small></div></li>
           </ol>
           <div class="action-stack">
-            <button id="transcribe-button" class="primary-button" disabled><span>Transcribe recording</span><b>→</b></button>
-            <button id="grade-button" class="primary-button grade-button hidden" disabled><span>Grade scorecard</span><b>→</b></button>
+            <button id="grade-button" class="primary-button grade-button" disabled><span>Grade scorecard</span><b>→</b></button>
           </div>
           <p id="form-message" class="form-message">Add a recording to continue.</p>
         </section>
@@ -104,7 +98,7 @@
         <div class="results-head"><div><p class="eyebrow">EVALUATION COMPLETE</p><h2>QA scorecard</h2><small class="scorecard-help">Review and edit any score before saving.</small></div><button id="save-button" class="secondary-button">Save evaluation</button></div>
         <div class="score-overview">
           <div class="score-card"><div class="score-ring"><span id="score-percent">0%</span></div><div><span>Overall score</span><strong><b id="score-points">0</b> / <b id="score-max">150</b></strong><small id="score-status">Review required</small></div></div>
-          <div class="summary-card"><span>AI summary</span><p id="result-summary"></p></div>
+          <div class="summary-card"><span>Call evaluation summary</span><p id="result-summary"></p></div>
           <div class="language-card"><span>Language</span><strong id="detected-language">—</strong><small>Translated to English</small></div>
         </div>
         <div class="result-layout"><div id="section-results" class="section-results"></div></div>
