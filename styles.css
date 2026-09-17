@@ -61,6 +61,8 @@ main{margin-left:248px;min-height:100vh}
 .primary-button{width:100%;padding:14px 17px;background:var(--green);color:white;display:flex;justify-content:space-between}
 .primary-button b{color:var(--acid)}
 .primary-button:disabled{opacity:.42;cursor:not-allowed}
+.action-stack{display:grid;gap:10px}
+.grade-button{background:var(--teal)}
 .secondary-button{padding:10px 14px;background:#edf3f0;color:var(--green)}
 .delete-evaluation{border:1px solid #efc0ba;border-radius:8px;background:#fff7f5;color:var(--red);padding:7px 10px;font:700 12px "DM Sans";cursor:pointer}
 .delete-evaluation:hover{background:#ffebe7}.delete-evaluation:disabled{opacity:.55;cursor:wait}
