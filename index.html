@@ -42,7 +42,7 @@
   </aside>
 
   <main>
-    <header class="topbar"><div><p class="eyebrow">QUALITY OPERATIONS</p><h1 id="page-title">VoiceQA Dashboard</h1></div><div class="top-actions"><span class="system-status"><i></i> Systems ready</span><button class="icon-btn" id="theme-toggle" type="button" aria-label="Use dark mode" title="Use dark mode">☾</button><button class="icon-btn" id="help-button" aria-label="Open help">?</button></div></header>
+    <header class="topbar"><div><p class="eyebrow">QUALITY OPERATIONS</p><h1 id="page-title">VoiceQA Dashboard</h1></div><div class="top-actions"><span class="system-status"><i></i> Systems ready</span><button class="icon-btn" id="help-button" aria-label="Open help">?</button></div></header>
 
     <section id="dashboard-view" class="view active">
       <section class="dashboard-hero">
@@ -70,6 +70,10 @@
           </label>
           <div id="file-chip" class="file-chip hidden"><div><span class="play-dot">▶</span><div><strong id="file-name"></strong><span id="file-size"></span></div></div><button id="remove-file" aria-label="Remove file">×</button></div>
           <audio id="audio-player" class="audio-player hidden" controls preload="metadata"></audio>
+          <section id="live-transcript" class="live-transcript hidden" aria-live="polite">
+            <div><strong>Speaker transcript</strong><span id="transcript-status">Waiting to transcribe</span></div>
+            <p id="live-transcript-text"></p>
+          </section>
         </section>
 
         <section class="panel details-panel">
@@ -83,13 +87,14 @@
         </section>
 
         <section class="panel process-panel">
-          <div class="panel-head"><div><span class="step-no">03</span><h2>Complete evaluation</h2></div><span class="rubric-badge">30 checks · 150 points</span></div>
+          <div class="panel-head"><div><span class="step-no">03</span><h2>Evaluation pipeline</h2></div><span class="rubric-badge">30 checks · 150 points</span></div>
           <ol class="pipeline">
-            <li class="current"><span>1</span><div><strong>Grade scorecard</strong><small>Listen privately and apply all 30 QA checks</small></div></li>
+            <li class="current"><span>1</span><div><strong>Transcribe recording</strong><small>Capture speakers and dialogue</small></div></li>
+            <li><span>2</span><div><strong>Translate to English</strong><small>Preserve meaning and context</small></div></li>
+            <li><span>3</span><div><strong>Apply QA rubric</strong><small>Score in workbook order</small></div></li>
+            <li><span>4</span><div><strong>Quality review</strong><small>Evidence and comments</small></div></li>
           </ol>
-          <div class="action-stack">
-            <button id="grade-button" class="primary-button grade-button" disabled><span>Grade scorecard</span><b>→</b></button>
-          </div>
+          <button id="evaluate-button" class="primary-button" disabled><span>Start evaluation</span><b>→</b></button>
           <p id="form-message" class="form-message">Add a recording to continue.</p>
         </section>
       </div>
@@ -98,7 +103,7 @@
         <div class="results-head"><div><p class="eyebrow">EVALUATION COMPLETE</p><h2>QA scorecard</h2><small class="scorecard-help">Review and edit any score before saving.</small></div><button id="save-button" class="secondary-button">Save evaluation</button></div>
         <div class="score-overview">
           <div class="score-card"><div class="score-ring"><span id="score-percent">0%</span></div><div><span>Overall score</span><strong><b id="score-points">0</b> / <b id="score-max">150</b></strong><small id="score-status">Review required</small></div></div>
-          <div class="summary-card"><span>Call evaluation summary</span><p id="result-summary"></p></div>
+          <div class="summary-card"><span>AI summary</span><p id="result-summary"></p></div>
           <div class="language-card"><span>Language</span><strong id="detected-language">—</strong><small>Translated to English</small></div>
         </div>
         <div class="result-layout"><div id="section-results" class="section-results"></div></div>
@@ -110,7 +115,7 @@
     <section id="settings-view" class="view"><div class="settings-grid"><div class="panel"><h2>Your account</h2><div class="account-card"><span class="connection-icon">✓</span><div><strong id="settings-user-email">Signed in</strong><small>Only your evaluations are visible to this account.</small></div></div><button class="secondary-button sign-out-button" id="sign-out" type="button">Sign out</button><p class="security-copy">Audio is processed temporarily and is not saved by VoiceQA. Transcripts are stored only when you select Save evaluation.</p></div><div class="panel"><h2>Evaluation rules</h2><label class="setting-row"><span><strong>Auto-detect language</strong><small>Translate non-English calls before scoring</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Require evidence</strong><small>Show transcript support for every answer</small></span><input type="checkbox" checked /></label><label class="setting-row"><span><strong>Flag critical misses</strong><small>Highlight starred workbook questions</small></span><input type="checkbox" checked /></label></div></div></section>
   </main>
 
-  <dialog id="help-dialog"><button class="dialog-close" id="help-close">×</button><p class="eyebrow">HOW IT WORKS</p><h2>Evaluate a call in simple stages</h2><ol><li>Upload one recording and enter the call details.</li><li>Select <strong>Transcribe recording</strong> and review the transcript.</li><li>Select <strong>Grade scorecard</strong> to apply all 30 QA checks.</li><li>Review, adjust and save the scores.</li></ol><p>If grading fails, the transcript remains ready so you can try grading again.</p></dialog>
+  <dialog id="help-dialog"><button class="dialog-close" id="help-close">×</button><p class="eyebrow">HOW IT WORKS</p><h2>Evaluate a call in four exact steps</h2><ol><li>Upload one voice recording.</li><li>Confirm the call and agent details.</li><li>VoiceQA transcribes, translates and scores all 30 checks in PDF order.</li><li>Review evidence, adjust any manual checks, and save the result.</li></ol><p>N/A items are excluded from the available maximum, matching the evaluation sample.</p></dialog>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
