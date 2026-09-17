@@ -14,50 +14,19 @@ export default async function handler(request, response) {
     const transcript = body?.transcript?.trim() || "";
     if (!transcript) return response.status(400).json({ error: "A transcript is required." });
 
-    const schema = {
-      type: "object",
-      additionalProperties: false,
-      required: ["detected_language", "english_transcript", "summary", "compliment_detected", "compliment_summary", "compliment_line_numbers", "rude_line_numbers", "results"],
-      properties: {
-        detected_language: { type: "string" },
-        english_transcript: { type: "string" },
-        summary: { type: "string" },
-        compliment_detected: { type: "boolean" },
-        compliment_summary: { type: "string" },
-        compliment_line_numbers: { type: "array", maxItems: 6, items: { type: "integer" } },
-        rude_line_numbers: { type: "array", maxItems: 30, items: { type: "integer" } },
-        results: {
-          type: "array",
-          minItems: flatRubric.length,
-          maxItems: flatRubric.length,
-          items: {
-            type: "object",
-            additionalProperties: false,
-            required: ["id", "score", "comment", "evidence"],
-            properties: {
-              id: { type: "string" },
-              score: { type: "string", enum: ["0", "1", "2", "3", "4", "5", "na"] },
-              comment: { type: "string" },
-              evidence: { type: "string" }
-            }
-          }
-        }
-      }
-    };
-
     console.log("[api/evaluate] scoring started", { transcriptCharacters: transcript.length, checks: flatRubric.length });
-    let scoringResponse = await requestScorecard(transcript, schema, true);
-    if (!scoringResponse.ok) {
-      const firstFailure = await providerFailure(scoringResponse);
-      if (!isJsonGenerationFailure(firstFailure)) throw new Error(formatProviderError("Evaluation", firstFailure));
-      console.warn("[api/evaluate] strict JSON generation failed; retrying", { status: firstFailure.status });
-      scoringResponse = await requestScorecard(transcript, schema, false);
+    let scoringResponse = await requestScorecard(transcript, false);
+    if (!scoringResponse.ok) throw new Error(formatProviderError("Evaluation", await providerFailure(scoringResponse)));
+    let parsed;
+    try {
+      parsed = parseAndValidate(await scoringResponse.json());
+    } catch (firstError) {
+      console.warn("[api/evaluate] response validation failed; retrying compact response", { error: firstError.message });
+      scoringResponse = await requestScorecard(transcript, true);
+      if (!scoringResponse.ok) throw new Error(formatProviderError("Evaluation retry", await providerFailure(scoringResponse)));
+      parsed = parseAndValidate(await scoringResponse.json());
     }
-    if (!scoringResponse.ok) throw new Error(formatProviderError("Evaluation retry", await providerFailure(scoringResponse)));
-    const scoringPayload = await scoringResponse.json();
-    const parsed = parseScorecard(scoringPayload.choices?.[0]?.message?.content);
-    validateScorecard(parsed);
-    normalizeTranscriptHighlights(parsed);
+    parsed.results = parsed.results.map(item => ({ ...item, comment: "", evidence: "" }));
     const evaluation = calculate(parsed.results);
     console.log("[api/evaluate] scoring completed", { score: evaluation.score, max: evaluation.max });
     return response.status(200).json({ transcript, ...parsed, ...evaluation, created_at: new Date().toISOString() });
@@ -67,23 +36,31 @@ export default async function handler(request, response) {
   }
 }
 
-async function requestScorecard(transcript, schema, strict) {
-  const system = "You are a strict contact-centre QA evaluator. Translate the transcript to English when necessary. The english_transcript must preserve the complete conversation from the first through the final utterance: never summarize, omit, shorten, merge, reorder, or invent speech. Format every utterance on its own line beginning exactly 'Agent - ' or 'Caller - ', with one blank line between every speaker turn. Infer roles carefully from greetings, requests, questions, and responses; do not mechanically alternate labels. Recheck the final portion of the transcript before answering to ensure the closing dialogue is complete and correctly attributed. Number the nonblank speaker turns in english_transcript mentally from 1. If the caller gives genuine praise, thanks, or positive feedback about the agent or service, set compliment_detected true, write one short compliment_summary, and return at least three consecutive turn numbers around the compliment in compliment_line_numbers. Otherwise return false, an empty summary, and an empty array. Put only turns containing insulting, abusive, threatening, discriminatory, or clearly disrespectful language in rude_line_numbers; ordinary frustration or complaints are not automatically rude. Evaluate only observable evidence. Return exactly one result for every rubric item, in the supplied order, using its exact id. Use score strings 0 or 5 for standard checks, 1 or 5 for documentation checks, 1 through 5 for ratings, and na only when an na-type check genuinely did not occur. Keep comments and evidence concise. For unavailable CRM-only evidence, score 1 and explain that manual verification is required. Return one valid JSON object only.";
+async function requestScorecard(transcript, retry) {
+  const system = `You are a contact-centre QA evaluator. Return one compact valid JSON object and no other text. Translate when needed. Keep english_transcript complete and format every turn as "Agent - ..." or "Caller - ..." with blank lines between turns. Infer roles from the conversation, not by alternating. Score every rubric item in order. Return results with only id and score. Allowed scores: standard 0/5, documentation 1/5, rating 1-5, and na only for eligible checks. CRM-only evidence that cannot be heard scores 1. Required keys: detected_language, english_transcript, summary, results.${retry ? " This is a retry: be especially strict about valid JSON syntax and include all rubric ids." : ""}`;
   return fetch(`${GROQ_API_URL}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: EVALUATION_MODEL,
       messages: [{ role: "system", content: system }, { role: "user", content: JSON.stringify({ transcript, rubric: flatRubric }) }],
-      response_format: strict ? { type: "json_schema", json_schema: { name: "qa_evaluation", strict: true, schema } } : { type: "json_object" },
       temperature: 0,
-      max_completion_tokens: 8000
+      max_completion_tokens: 6000
     })
   });
 }
 
+function parseAndValidate(payload) {
+  const parsed = parseScorecard(payload.choices?.[0]?.message?.content);
+  validateScorecard(parsed);
+  return parsed;
+}
+
 function parseScorecard(content = "") {
-  const cleaned = String(content).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  const raw = String(content).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  const cleaned = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
   try { return JSON.parse(cleaned || "{}"); }
   catch { throw new Error("The evaluation retry returned invalid JSON. Please try the evaluation again."); }
 }
@@ -97,23 +74,6 @@ function validateScorecard(parsed) {
   if (!parsed.detected_language || !parsed.english_transcript || !parsed.summary) throw new Error("The evaluation returned incomplete call details. Please try again.");
 }
 
-function normalizeTranscriptHighlights(parsed) {
-  const turns = String(parsed.english_transcript || "").split(/\n+/).map(line => line.trim()).filter(Boolean);
-  const validNumbers = values => [...new Set((Array.isArray(values) ? values : []).map(Number).filter(value => Number.isInteger(value) && value >= 1 && value <= turns.length))];
-  parsed.rude_line_numbers = validNumbers(parsed.rude_line_numbers);
-  parsed.compliment_line_numbers = validNumbers(parsed.compliment_line_numbers);
-  if (!parsed.compliment_detected) {
-    parsed.compliment_summary = "";
-    parsed.compliment_line_numbers = [];
-    return;
-  }
-  if (parsed.compliment_line_numbers.length && parsed.compliment_line_numbers.length < 3 && turns.length >= 3) {
-    const focus = parsed.compliment_line_numbers[0] - 1;
-    const start = Math.max(0, Math.min(focus - 1, turns.length - 3));
-    parsed.compliment_line_numbers = [start + 1, start + 2, start + 3];
-  }
-}
-
 async function providerFailure(providerResponse) {
   let detail = "";
   try {
@@ -121,10 +81,6 @@ async function providerFailure(providerResponse) {
     detail = payload?.error?.message || "";
   } catch {}
   return { status: providerResponse.status, detail };
-}
-
-function isJsonGenerationFailure(failure) {
-  return failure.status === 400 && /failed_generation|generate json|json/i.test(failure.detail);
 }
 
 function formatProviderError(stage, failure) {
