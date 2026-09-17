@@ -62,10 +62,10 @@ async function transcribe(audio, filename, language, openingRetry, part, parts) 
   transcriptionForm.set("timestamp_granularities[]", "segment");
   transcriptionForm.set("temperature", "0");
   if (language) transcriptionForm.set("language", language);
-  const sectionContext = parts > 1 ? ` This is section ${part} of ${parts}. Transcribe every spoken word in this section from its beginning through its end.` : "";
+  const sectionContext = parts > 1 ? ` This is section ${part} of ${parts}. Transcribe every spoken word in this section from its beginning through its end.` : " Include the very first spoken words after any ringing or silence, especially the agent's greeting and introduction. Continue through the final spoken word.";
   transcriptionForm.set("prompt", openingRetry
     ? "Start at the first spoken syllable after any ringing or silence. Do not omit the opening greeting, company name, agent introduction, or offer of assistance. Transcribe the entire contact-centre call through the final spoken word exactly as heard."
-    : `This is a contact-centre telephone call between an agent and a caller.${sectionContext} Include all dialogue, names, numbers, questions, answers, and closing statements exactly as heard.`);
+    : `This is a contact-centre telephone call between an agent and a caller.${sectionContext} Preserve all dialogue, names, numbers, questions, answers, and closing statements exactly as heard.`);
 
   const upstream = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
     method: "POST",
