@@ -5,8 +5,13 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "check": "node --check app.js && node --check api/transcribe.js && node --check api/evaluate.js && node --check api/evaluations.js && node --check api/account-setup.js && node --check lib/auth.js",
+    "check": "node --check app.js && node --check api/uploads.js && node --check api/transcribe.js && node --check api/evaluate.js && node --check api/evaluations.js && node --check api/account-setup.js && node --check lib/auth.js",
     "dev": "npx vercel dev"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.116.0"
+  }
 }
