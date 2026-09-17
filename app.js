@@ -4,7 +4,9 @@ const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const SUPABASE_URL = 'https://trbgcgwgbfqbfzsbdhmb.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_PCl6O_LbLG2DKPbMRhkG-Q_WLOWiHzr';
+const SUPABASE_RESUMABLE_URL = 'https://trbgcgwgbfqbfzsbdhmb.storage.supabase.co/storage/v1/upload/resumable';
 let selectedFile = null;
+let processedTranscript = '';
 let latestEvaluation = null;
 let audioObjectUrl = null;
 let currentUser = null;
@@ -151,8 +153,9 @@ $('#remove-file').addEventListener('click', () => selectFile(null));
 function selectFile(file) {
   const valid = !file || file.type.startsWith('audio/') || /\.(mp3|wav|m4a|webm|ogg)$/i.test(file.name);
   if (!valid) return setMessage('Please choose an audio recording.', true);
-  if (file?.size > 25 * 1024 * 1024) return setMessage('The recording must be 25 MB or smaller.', true);
+  if (file?.size > 40 * 1024 * 1024) return setMessage('The recording must be 40 MB or smaller.', true);
   selectedFile = file;
+  processedTranscript = '';
   if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
   audioObjectUrl = file ? URL.createObjectURL(file) : null;
   const player = $('#audio-player');
@@ -173,24 +176,33 @@ async function evaluate() {
   if (!selectedFile) return;
   setBusy(true);
   try {
-    const data = new FormData();
-    data.set('audio', selectedFile);
-    data.set('language', $('#language').value);
     setPipeline(0);
-    $('#live-transcript').classList.remove('hidden');
-    $('#transcript-status').textContent = 'Transcribing…';
-    $('#live-transcript-text').textContent = 'VoiceQA is listening to the recording.';
-
-    const transcriptionResponse = await authFetch('/api/transcribe', { method: 'POST', body: data });
-    const transcription = await transcriptionResponse.json();
-    if (!transcriptionResponse.ok) throw new Error(transcription.error || 'Transcription failed.');
-    $('#live-transcript-text').textContent = transcription.transcript;
-    $('#transcript-status').textContent = 'Transcript ready';
+    if (!processedTranscript) {
+      setMessage('Uploading the recording securely…');
+      const uploadResponse = await authFetch('/api/uploads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: selectedFile.name, size: selectedFile.size, type: selectedFile.type })
+      });
+      const upload = await uploadResponse.json();
+      if (!uploadResponse.ok) throw new Error(upload.error || 'Could not prepare the recording upload.');
+      await uploadRecording(selectedFile, upload);
+      setMessage('Recording uploaded. Transcribing the complete call…');
+      const transcriptionResponse = await authFetch('/api/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storagePath: upload.storagePath, filename: selectedFile.name, language: $('#language').value })
+      });
+      const transcription = await transcriptionResponse.json();
+      if (!transcriptionResponse.ok) throw new Error(transcription.error || 'Recording processing failed.');
+      processedTranscript = transcription.transcript?.trim() || '';
+      if (!processedTranscript) throw new Error('No speech was detected in the recording.');
+    }
     setPipeline(1);
     setMessage('Recording processed. Applying the QA rubric…');
 
     const timers = [setTimeout(() => setPipeline(2), 1200), setTimeout(() => setPipeline(3), 3500)];
-    const response = await requestEvaluationWithRateLimitRetry(transcription.transcript);
+    const response = await requestEvaluationWithRateLimitRetry(processedTranscript);
     timers.forEach(clearTimeout);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Evaluation failed.');
@@ -204,6 +216,41 @@ async function evaluate() {
   } finally { setBusy(false); }
 }
 
+function uploadRecording(file, upload) {
+  if (!window.tus?.Upload || !upload.uploadToken) {
+    return fetch(upload.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'audio/mpeg', 'x-upsert': 'false' },
+      body: file
+    }).then(response => {
+      if (!response.ok) throw new Error(`Recording upload failed (${response.status}).`);
+    });
+  }
+  return new Promise((resolve, reject) => {
+    const task = new window.tus.Upload(file, {
+      endpoint: SUPABASE_RESUMABLE_URL,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      chunkSize: 6 * 1024 * 1024,
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      headers: { 'x-signature': upload.uploadToken },
+      metadata: {
+        bucketName: 'voiceqa-temp',
+        objectName: upload.storagePath,
+        contentType: file.type || 'audio/mpeg',
+        cacheControl: '0'
+      },
+      onError: error => reject(new Error(error?.message || 'Recording upload failed.')),
+      onProgress: (sent, total) => setMessage(`Uploading the recording securely… ${Math.round((sent / total) * 100)}%`),
+      onSuccess: resolve
+    });
+    task.findPreviousUploads().then(previous => {
+      if (previous.length) task.resumeFromPreviousUpload(previous[0]);
+      task.start();
+    }).catch(reject);
+  });
+}
+
 async function requestEvaluationWithRateLimitRetry(transcript) {
   const options = {
     method: 'POST',
@@ -214,14 +261,17 @@ async function requestEvaluationWithRateLimitRetry(transcript) {
     const response = await authFetch('/api/evaluate', options);
     if (response.status !== 429 || attempt === 2) return response;
     const payload = await response.json().catch(() => ({}));
-    const waitSeconds = Math.min(Math.max(Number(payload.retryAfter) || 30, 1), 60);
+    const waitSeconds = Math.min(Math.max(Number(payload.retryAfter) || 30, 1), 900);
     await waitForRateLimit(waitSeconds);
   }
 }
 
 async function waitForRateLimit(seconds) {
   for (let remaining = seconds; remaining > 0; remaining -= 1) {
-    setMessage(`Groq's free allowance is resetting. Retrying automatically in ${remaining} second${remaining === 1 ? '' : 's'}…`);
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+    const countdown = minutes ? `${minutes}m ${String(seconds).padStart(2, '0')}s` : `${seconds}s`;
+    setMessage(`Free allowance is resetting. VoiceQA will retry automatically in ${countdown}.`);
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
   setMessage('Retrying the evaluation now…');
@@ -294,6 +344,7 @@ $('#save-button').addEventListener('click', async () => {
 
 function resetEvaluation() {
   latestEvaluation = null;
+  processedTranscript = '';
   $('#audio-input').value = '';
   selectFile(null);
   $('#agent').value = '';
