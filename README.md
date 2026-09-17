@@ -5,7 +5,7 @@ A Vercel-ready voice quality evaluation dashboard based exactly on `Evaluation s
 ## Workflow
 
 1. Upload one call recording (MP3, WAV, M4A, WEBM or OGG; max 25 MB) and play it in the dashboard.
-2. Select **Transcribe recording**. VoiceQA uses the accuracy-focused Whisper Large v3 model and shows the completed transcript for review. Longer recordings are converted to upload-safe 16 kHz mono audio, processed in ordered one-minute sections and joined before grading to reduce skipped dialogue. The completed transcript identifies inferred turns as **Agent -** or **Caller -** before grading.
+2. Select **Transcribe recording**. VoiceQA sends the original recording directly to the accuracy-focused Whisper Large v3 model without converting, splitting or rewriting it, then shows the original transcript for review.
 3. Select **Grade scorecard** only after the transcript is ready. VoiceQA translates when needed and applies all 30 PDF checks in the original 8-section sequence.
 4. Review and save the dynamic scorecard to Supabase. N/A checks are excluded from the available maximum. If grading fails, the transcript remains available and can be graded again without retranscribing the audio.
 
