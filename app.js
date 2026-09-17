@@ -190,11 +190,7 @@ async function evaluate() {
     setMessage('Transcript ready. Translating and applying the QA rubric…');
 
     const timers = [setTimeout(() => setPipeline(2), 1200), setTimeout(() => setPipeline(3), 3500)];
-    const response = await authFetch('/api/evaluate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transcript: transcription.transcript })
-    });
+    const response = await requestEvaluationWithRateLimitRetry(transcription.transcript);
     timers.forEach(clearTimeout);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Evaluation failed.');
@@ -206,6 +202,29 @@ async function evaluate() {
     setPipeline(0);
     setMessage(error.message, true);
   } finally { setBusy(false); }
+}
+
+async function requestEvaluationWithRateLimitRetry(transcript) {
+  const options = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transcript })
+  };
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await authFetch('/api/evaluate', options);
+    if (response.status !== 429 || attempt === 2) return response;
+    const payload = await response.json().catch(() => ({}));
+    const waitSeconds = Math.min(Math.max(Number(payload.retryAfter) || 30, 1), 60);
+    await waitForRateLimit(waitSeconds);
+  }
+}
+
+async function waitForRateLimit(seconds) {
+  for (let remaining = seconds; remaining > 0; remaining -= 1) {
+    setMessage(`Groq's free allowance is resetting. Retrying automatically in ${remaining} second${remaining === 1 ? '' : 's'}…`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  setMessage('Retrying the evaluation now…');
 }
 
 function setBusy(busy) {
