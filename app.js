@@ -164,7 +164,7 @@ function selectFile(file) {
   $('#live-transcript').classList.add('hidden');
   $('#live-transcript-text').textContent = '';
   $('#transcript-status').textContent = 'Waiting to transcribe';
-  if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Listen now, or start the evaluation to generate the transcript.'); }
+  if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Listen now, or start the scorecard evaluation.'); }
   else setMessage('Add a recording to continue.');
 }
 
@@ -187,7 +187,7 @@ async function evaluate() {
     $('#live-transcript-text').textContent = transcription.transcript;
     $('#transcript-status').textContent = 'Transcript ready';
     setPipeline(1);
-    setMessage('Transcript ready. Translating and applying the QA rubric…');
+    setMessage('Recording processed. Applying the QA rubric…');
 
     const timers = [setTimeout(() => setPipeline(2), 1200), setTimeout(() => setPipeline(3), 3500)];
     const response = await requestEvaluationWithRateLimitRetry(transcription.transcript);
@@ -197,7 +197,7 @@ async function evaluate() {
     latestEvaluation = payload;
     renderResults(payload);
     setPipeline(4);
-    setMessage('Evaluation complete. Review the evidence before saving.');
+    setMessage('Evaluation complete. Review and edit the scorecard before saving.');
   } catch (error) {
     setPipeline(0);
     setMessage(error.message, true);
@@ -284,7 +284,7 @@ $('#section-results').addEventListener('change', event => {
 
 $('#save-button').addEventListener('click', async () => {
   if (!latestEvaluation) return;
-  const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: currentUser?.app_metadata?.voiceqa_user_id || 'VoiceQA owner', detected_language: latestEvaluation.detected_language, original_transcript: latestEvaluation.transcript, english_transcript: latestEvaluation.english_transcript, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
+  const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: currentUser?.app_metadata?.voiceqa_user_id || 'VoiceQA owner', detected_language: latestEvaluation.detected_language, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
   const response = await authFetch('/api/evaluations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) { const payload = await response.json().catch(() => ({})); return setMessage(payload.error || 'Could not save the evaluation.', true); }
   $('#save-button').textContent = 'Saved ✓';
