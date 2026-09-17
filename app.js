@@ -13,7 +13,23 @@ let session = JSON.parse(sessionStorage.getItem('voiceqa_session') || 'null');
 let authMode = 'signin';
 const authHeaders = () => ({ Authorization: `Bearer ${session?.access_token || ''}` });
 
+applyTheme(localStorage.getItem('voiceqa_theme') === 'dark' ? 'dark' : 'light');
 initializeAuth();
+
+$('#theme-toggle').addEventListener('click', () => {
+  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+});
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem('voiceqa_theme', theme);
+  const button = $('#theme-toggle');
+  if (!button) return;
+  const dark = theme === 'dark';
+  button.textContent = dark ? '☀' : '☾';
+  button.title = dark ? 'Use light mode' : 'Use dark mode';
+  button.setAttribute('aria-label', button.title);
+}
 
 async function initializeAuth() {
   const setup = await fetch('/api/account-setup').then(response => response.json()).catch(() => ({ setupAvailable: false }));
