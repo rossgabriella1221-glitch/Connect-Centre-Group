@@ -5,6 +5,7 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 const SUPABASE_URL = 'https://trbgcgwgbfqbfzsbdhmb.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_PCl6O_LbLG2DKPbMRhkG-Q_WLOWiHzr';
 let selectedFile = null;
+let currentTranscript = '';
 let latestEvaluation = null;
 let audioObjectUrl = null;
 let currentUser = null;
@@ -153,6 +154,8 @@ function selectFile(file) {
   if (!valid) return setMessage('Please choose an audio recording.', true);
   if (file?.size > 25 * 1024 * 1024) return setMessage('The recording must be 25 MB or smaller.', true);
   selectedFile = file;
+  currentTranscript = '';
+  latestEvaluation = null;
   if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
   audioObjectUrl = file ? URL.createObjectURL(file) : null;
   const player = $('#audio-player');
@@ -160,18 +163,23 @@ function selectFile(file) {
   player.classList.toggle('hidden', !file);
   $('#file-chip').classList.toggle('hidden', !file);
   dropzone.classList.toggle('hidden', Boolean(file));
-  $('#evaluate-button').disabled = !file;
+  $('#transcribe-button').disabled = !file;
+  $('#transcribe-button span').textContent = 'Transcribe recording';
+  $('#grade-button').classList.add('hidden');
+  $('#grade-button').disabled = true;
+  $('#results').classList.add('hidden');
   $('#live-transcript').classList.add('hidden');
   $('#live-transcript-text').textContent = '';
   $('#transcript-status').textContent = 'Waiting to transcribe';
-  if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Listen now, or start the evaluation to generate the transcript.'); }
+  setPipeline(0);
+  if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Click Transcribe recording. You can review the transcript before grading.'); }
   else setMessage('Add a recording to continue.');
 }
 
-$('#evaluate-button').addEventListener('click', evaluate);
-async function evaluate() {
+$('#transcribe-button').addEventListener('click', transcribeRecording);
+async function transcribeRecording() {
   if (!selectedFile) return;
-  setBusy(true);
+  setTranscribeBusy(true);
   try {
     const data = new FormData();
     data.set('audio', selectedFile);
@@ -184,24 +192,38 @@ async function evaluate() {
     const transcriptionResponse = await authFetch('/api/transcribe', { method: 'POST', body: data });
     const transcription = await transcriptionResponse.json();
     if (!transcriptionResponse.ok) throw new Error(transcription.error || 'Transcription failed.');
-    $('#live-transcript-text').textContent = transcription.transcript;
+    currentTranscript = transcription.transcript;
+    $('#live-transcript-text').textContent = currentTranscript;
     $('#transcript-status').textContent = 'Transcript ready';
     setPipeline(1);
-    setMessage('Transcript ready. Translating and applying the QA rubric…');
+    $('#transcribe-button span').textContent = 'Transcribe again';
+    $('#grade-button').classList.remove('hidden');
+    $('#grade-button').disabled = false;
+    setMessage('Transcript ready. Review it, then click Grade scorecard.');
+  } catch (error) {
+    setPipeline(0);
+    setMessage(error.message, true);
+  } finally { setTranscribeBusy(false); }
+}
 
-    const timers = [setTimeout(() => setPipeline(2), 1200), setTimeout(() => setPipeline(3), 3500)];
-    const response = await requestEvaluationWithRateLimitRetry(transcription.transcript);
-    timers.forEach(clearTimeout);
+$('#grade-button').addEventListener('click', gradeScorecard);
+async function gradeScorecard() {
+  if (!currentTranscript) return setMessage('Transcribe the recording first.', true);
+  setGradeBusy(true);
+  try {
+    setPipeline(1);
+    setMessage('Grading the transcript. This may take a little time…');
+    const response = await requestEvaluationWithRateLimitRetry(currentTranscript);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Evaluation failed.');
     latestEvaluation = payload;
     renderResults(payload);
-    setPipeline(4);
-    setMessage('Evaluation complete. Review the evidence before saving.');
+    setPipeline(2);
+    setMessage('Scorecard ready. Review and edit the scores before saving.');
   } catch (error) {
-    setPipeline(0);
-    setMessage(error.message, true);
-  } finally { setBusy(false); }
+    setPipeline(1);
+    setMessage('The transcript is safe. Grading did not finish—click Grade scorecard to try again.', true);
+  } finally { setGradeBusy(false); }
 }
 
 async function requestEvaluationWithRateLimitRetry(transcript) {
@@ -227,11 +249,21 @@ async function waitForRateLimit(seconds) {
   setMessage('Retrying the evaluation now…');
 }
 
-function setBusy(busy) {
-  $('#evaluate-button').disabled = busy;
-  $('#evaluate-button span').textContent = busy ? 'Evaluating recording…' : 'Start evaluation';
+function setTranscribeBusy(busy) {
+  $('#transcribe-button').disabled = busy || !selectedFile;
+  if (busy) $('#grade-button').disabled = true;
+  if (busy) $('#transcribe-button span').textContent = 'Transcribing recording…';
+  else {
+    $('#transcribe-button span').textContent = currentTranscript ? 'Transcribe again' : 'Transcribe recording';
+    $('#grade-button').disabled = !currentTranscript;
+  }
 }
-function setPipeline(index) { $$('.pipeline li').forEach((item, i) => { item.classList.toggle('done', i < index); item.classList.toggle('current', i === index && index < 4); item.querySelector('span').textContent = i < index ? '✓' : String(i + 1); }); }
+function setGradeBusy(busy) {
+  $('#grade-button').disabled = busy;
+  $('#transcribe-button').disabled = busy || !selectedFile;
+  $('#grade-button span').textContent = busy ? 'Grading scorecard…' : 'Grade scorecard';
+}
+function setPipeline(index) { const items = $$('.pipeline li'); items.forEach((item, i) => { item.classList.toggle('done', i < index); item.classList.toggle('current', i === index && index < items.length); item.querySelector('span').textContent = i < index ? '✓' : String(i + 1); }); }
 function setMessage(message, error = false) { $('#form-message').textContent = message; $('#form-message').style.color = error ? 'var(--red)' : ''; }
 
 function renderResults(evaluation) {
@@ -294,6 +326,7 @@ $('#save-button').addEventListener('click', async () => {
 
 function resetEvaluation() {
   latestEvaluation = null;
+  currentTranscript = '';
   $('#audio-input').value = '';
   selectFile(null);
   $('#agent').value = '';
@@ -378,7 +411,7 @@ function formatSpeakerTranscript(value = '') { return String(value).trim().repla
 function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 
 if (document.modelContext?.registerTool) {
-  document.modelContext.registerTool({ name: 'start_voice_qa_evaluation', title: 'Start voice QA evaluation', description: 'Start evaluating the recording currently selected in the visible VoiceQA dashboard.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: async () => { if (!selectedFile) throw new Error('Select a recording first.'); await evaluate(); return { score: latestEvaluation?.score, max: latestEvaluation?.max, percentage: latestEvaluation?.percentage }; } });
+  document.modelContext.registerTool({ name: 'start_voice_qa_evaluation', title: 'Start voice QA evaluation', description: 'Transcribe and grade the recording currently selected in the visible VoiceQA dashboard.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: async () => { if (!selectedFile) throw new Error('Select a recording first.'); if (!currentTranscript) await transcribeRecording(); if (currentTranscript) await gradeScorecard(); return { score: latestEvaluation?.score, max: latestEvaluation?.max, percentage: latestEvaluation?.percentage }; } });
 }
 
 console.info(`VoiceQA rubric loaded: ${flatRubric.length} checks, ${fullMaxScore} points.`);
