@@ -39,7 +39,7 @@ export default async function handler(request, response) {
 async function requestScorecard(transcript, retry) {
   const system = `You are a contact-centre QA evaluator. Do not return JSON or Markdown. Return plain text using these exact markers:
 LANGUAGE: detected language
-SUMMARY: one line containing 2 to 3 concise sentences based on the scorecard. State the caller's main reason for calling, what the agent handled well, the most important improvement needed, and the overall QA outcome. Do not invent details.
+SUMMARY: one short sentence
 TRANSCRIPT_START
 Agent - complete English speech
 
