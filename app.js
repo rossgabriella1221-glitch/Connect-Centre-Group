@@ -179,47 +179,11 @@ function selectFile(file) {
   player.classList.toggle('hidden', !file);
   $('#file-chip').classList.toggle('hidden', !file);
   dropzone.classList.toggle('hidden', Boolean(file));
-  $('#transcribe-button').disabled = !file;
-  $('#transcribe-button span').textContent = 'Transcribe recording';
-  $('#grade-button').classList.add('hidden');
-  $('#grade-button').disabled = true;
+  $('#grade-button').disabled = !file;
   $('#results').classList.add('hidden');
-  $('#live-transcript').classList.add('hidden');
-  $('#live-transcript-text').textContent = '';
-  $('#transcript-status').textContent = 'Waiting to transcribe';
   setPipeline(0);
-  if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Click Transcribe recording. You can review the transcript before grading.'); }
+  if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Click Grade scorecard to evaluate this recording.'); }
   else setMessage('Add a recording to continue.');
-}
-
-$('#transcribe-button').addEventListener('click', transcribeRecording);
-async function transcribeRecording() {
-  if (!selectedFile) return;
-  setTranscribeBusy(true);
-  try {
-    setPipeline(0);
-    $('#live-transcript').classList.remove('hidden');
-    $('#transcript-status').textContent = 'Transcribing…';
-    $('#live-transcript-text').textContent = 'VoiceQA is listening to the recording.';
-    const data = new FormData();
-    data.set('audio', selectedFile, selectedFile.name);
-    data.set('language', $('#language').value);
-    const transcriptionResponse = await authFetch('/api/transcribe', { method: 'POST', body: data });
-    const transcription = await readApiResponse(transcriptionResponse);
-    if (!transcriptionResponse.ok) throw new Error(transcription.error || 'Transcription failed.');
-    currentTranscript = transcription.transcript?.trim() || '';
-    if (!currentTranscript) throw new Error('No speech was detected in the recording.');
-    $('#live-transcript-text').textContent = currentTranscript;
-    $('#transcript-status').textContent = 'Original transcript ready';
-    setPipeline(1);
-    $('#transcribe-button span').textContent = 'Transcribe again';
-    $('#grade-button').classList.remove('hidden');
-    $('#grade-button').disabled = false;
-    setMessage('Transcript ready. Review it, then click Grade scorecard.');
-  } catch (error) {
-    setPipeline(0);
-    setMessage(error.message, true);
-  } finally { setTranscribeBusy(false); }
 }
 
 async function readApiResponse(response) {
@@ -233,21 +197,31 @@ async function readApiResponse(response) {
 
 $('#grade-button').addEventListener('click', gradeScorecard);
 async function gradeScorecard() {
-  if (!currentTranscript) return setMessage('Transcribe the recording first.', true);
+  if (!selectedFile) return setMessage('Add a recording first.', true);
   setGradeBusy(true);
   try {
-    setPipeline(1);
-    setMessage('Grading the transcript. This may take a little time…');
+    if (!currentTranscript) {
+      setMessage('Listening to the recording. This may take a little time…');
+      const data = new FormData();
+      data.set('audio', selectedFile, selectedFile.name);
+      data.set('language', $('#language').value);
+      const transcriptionResponse = await authFetch('/api/transcribe', { method: 'POST', body: data });
+      const transcription = await readApiResponse(transcriptionResponse);
+      if (!transcriptionResponse.ok) throw new Error(transcription.error || 'The recording could not be processed.');
+      currentTranscript = transcription.transcript?.trim() || '';
+      if (!currentTranscript) throw new Error('No speech was detected in the recording.');
+    }
+    setMessage('Applying all 30 QA checks…');
     const response = await requestEvaluationWithRateLimitRetry(currentTranscript);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Evaluation failed.');
     latestEvaluation = payload;
     renderResults(payload);
-    setPipeline(2);
+    setPipeline(1);
     setMessage('Scorecard ready. Review and edit the scores before saving.');
   } catch (error) {
-    setPipeline(1);
-    setMessage('The transcript is safe. Grading did not finish—click Grade scorecard to try again.', true);
+    setPipeline(0);
+    setMessage(error.message || 'The scorecard could not be completed. Click Grade scorecard to try again.', true);
   } finally { setGradeBusy(false); }
 }
 
@@ -278,18 +252,8 @@ async function waitForRateLimit(seconds, activity = 'Processing') {
   setMessage(`Retrying ${activity.toLowerCase()} now…`);
 }
 
-function setTranscribeBusy(busy) {
-  $('#transcribe-button').disabled = busy || !selectedFile;
-  if (busy) $('#grade-button').disabled = true;
-  if (busy) $('#transcribe-button span').textContent = 'Transcribing recording…';
-  else {
-    $('#transcribe-button span').textContent = currentTranscript ? 'Transcribe again' : 'Transcribe recording';
-    $('#grade-button').disabled = !currentTranscript;
-  }
-}
 function setGradeBusy(busy) {
-  $('#grade-button').disabled = busy;
-  $('#transcribe-button').disabled = busy || !selectedFile;
+  $('#grade-button').disabled = busy || !selectedFile;
   $('#grade-button span').textContent = busy ? 'Grading scorecard…' : 'Grade scorecard';
 }
 function setPipeline(index) { const items = $$('.pipeline li'); items.forEach((item, i) => { item.classList.toggle('done', i < index); item.classList.toggle('current', i === index && index < items.length); item.querySelector('span').textContent = i < index ? '✓' : String(i + 1); }); }
@@ -301,9 +265,6 @@ function renderResults(evaluation) {
   renderScoreSections(evaluation.sections);
   $('#result-summary').textContent = evaluation.summary;
   $('#detected-language').textContent = evaluation.detected_language || 'English';
-  const speakerTranscript = formatSpeakerTranscript(evaluation.english_transcript || evaluation.transcript);
-  $('#live-transcript-text').textContent = speakerTranscript;
-  $('#transcript-status').textContent = 'Speaker labels ready';
   $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -345,7 +306,7 @@ $('#section-results').addEventListener('change', event => {
 
 $('#save-button').addEventListener('click', async () => {
   if (!latestEvaluation) return;
-  const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: currentUser?.app_metadata?.voiceqa_user_id || 'VoiceQA owner', detected_language: latestEvaluation.detected_language, original_transcript: latestEvaluation.transcript, english_transcript: latestEvaluation.english_transcript, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
+  const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: currentUser?.app_metadata?.voiceqa_user_id || 'VoiceQA owner', detected_language: latestEvaluation.detected_language, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
   const response = await authFetch('/api/evaluations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) { const payload = await response.json().catch(() => ({})); return setMessage(payload.error || 'Could not save the evaluation.', true); }
   $('#save-button').textContent = 'Saved ✓';
@@ -436,11 +397,10 @@ $('#help-close').addEventListener('click', () => $('#help-dialog').close());
 
 function formatBytes(bytes) { return `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
 function formatPercentage(value) { const number = Number(value); return Number.isFinite(number) ? `${Number(number.toFixed(2))}%` : '—'; }
-function formatSpeakerTranscript(value = '') { return String(value).trim().replace(/\n+\s*(?=(?:Agent|Caller)\s*-\s*)/g, '\n\n'); }
 function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 
 if (document.modelContext?.registerTool) {
-  document.modelContext.registerTool({ name: 'start_voice_qa_evaluation', title: 'Start voice QA evaluation', description: 'Transcribe and grade the recording currently selected in the visible VoiceQA dashboard.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: async () => { if (!selectedFile) throw new Error('Select a recording first.'); if (!currentTranscript) await transcribeRecording(); if (currentTranscript) await gradeScorecard(); return { score: latestEvaluation?.score, max: latestEvaluation?.max, percentage: latestEvaluation?.percentage }; } });
+  document.modelContext.registerTool({ name: 'start_voice_qa_evaluation', title: 'Grade voice QA scorecard', description: 'Grade the recording currently selected in the visible VoiceQA dashboard.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: async () => { if (!selectedFile) throw new Error('Select a recording first.'); await gradeScorecard(); return { score: latestEvaluation?.score, max: latestEvaluation?.max, percentage: latestEvaluation?.percentage }; } });
 }
 
 console.info(`VoiceQA rubric loaded: ${flatRubric.length} checks, ${fullMaxScore} points.`);
