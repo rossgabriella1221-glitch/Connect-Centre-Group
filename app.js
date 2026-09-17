@@ -5,7 +5,6 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 const SUPABASE_URL = 'https://trbgcgwgbfqbfzsbdhmb.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_PCl6O_LbLG2DKPbMRhkG-Q_WLOWiHzr';
 let selectedFile = null;
-let currentTranscript = '';
 let latestEvaluation = null;
 let audioObjectUrl = null;
 let currentUser = null;
@@ -13,23 +12,7 @@ let session = JSON.parse(sessionStorage.getItem('voiceqa_session') || 'null');
 let authMode = 'signin';
 const authHeaders = () => ({ Authorization: `Bearer ${session?.access_token || ''}` });
 
-applyTheme(localStorage.getItem('voiceqa_theme') === 'dark' ? 'dark' : 'light');
 initializeAuth();
-
-$('#theme-toggle').addEventListener('click', () => {
-  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
-});
-
-function applyTheme(theme) {
-  document.documentElement.dataset.theme = theme;
-  localStorage.setItem('voiceqa_theme', theme);
-  const button = $('#theme-toggle');
-  if (!button) return;
-  const dark = theme === 'dark';
-  button.textContent = dark ? '☀' : '☾';
-  button.title = dark ? 'Use light mode' : 'Use dark mode';
-  button.setAttribute('aria-label', button.title);
-}
 
 async function initializeAuth() {
   const setup = await fetch('/api/account-setup').then(response => response.json()).catch(() => ({ setupAvailable: false }));
@@ -170,8 +153,6 @@ function selectFile(file) {
   if (!valid) return setMessage('Please choose an audio recording.', true);
   if (file?.size > 25 * 1024 * 1024) return setMessage('The recording must be 25 MB or smaller.', true);
   selectedFile = file;
-  currentTranscript = '';
-  latestEvaluation = null;
   if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
   audioObjectUrl = file ? URL.createObjectURL(file) : null;
   const player = $('#audio-player');
@@ -179,84 +160,78 @@ function selectFile(file) {
   player.classList.toggle('hidden', !file);
   $('#file-chip').classList.toggle('hidden', !file);
   dropzone.classList.toggle('hidden', Boolean(file));
-  $('#grade-button').disabled = !file;
-  $('#results').classList.add('hidden');
-  setPipeline(0);
-  if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Click Grade scorecard to evaluate this recording.'); }
+  $('#evaluate-button').disabled = !file;
+  $('#live-transcript').classList.add('hidden');
+  $('#live-transcript-text').textContent = '';
+  $('#transcript-status').textContent = 'Waiting to transcribe';
+  if (file) { $('#file-name').textContent = file.name; $('#file-size').textContent = formatBytes(file.size); setMessage('Listen now, or start the evaluation to generate the transcript.'); }
   else setMessage('Add a recording to continue.');
 }
 
-async function readApiResponse(response) {
-  const text = await response.text();
-  try { return JSON.parse(text); }
-  catch {
-    if (response.status === 413) return { error: 'This recording is too large to upload. Please use a file below 25 MB.' };
-    return { error: response.ok ? 'The server returned an unreadable response.' : `The transcription service could not complete this request (${response.status}).` };
-  }
-}
-
-$('#grade-button').addEventListener('click', gradeScorecard);
-async function gradeScorecard() {
-  if (!selectedFile) return setMessage('Add a recording first.', true);
-  setGradeBusy(true);
+$('#evaluate-button').addEventListener('click', evaluate);
+async function evaluate() {
+  if (!selectedFile) return;
+  setBusy(true);
   try {
-    if (!currentTranscript) {
-      setMessage('Listening to the recording. This may take a little time…');
-      const data = new FormData();
-      data.set('audio', selectedFile, selectedFile.name);
-      data.set('language', $('#language').value);
-      const transcriptionResponse = await authFetch('/api/transcribe', { method: 'POST', body: data });
-      const transcription = await readApiResponse(transcriptionResponse);
-      if (!transcriptionResponse.ok) throw new Error(transcription.error || 'The recording could not be processed.');
-      currentTranscript = transcription.transcript?.trim() || '';
-      if (!currentTranscript) throw new Error('No speech was detected in the recording.');
-    }
-    setMessage('Applying all 30 QA checks…');
-    const response = await requestEvaluationWithRateLimitRetry(currentTranscript);
+    const data = new FormData();
+    data.set('audio', selectedFile);
+    data.set('language', $('#language').value);
+    setPipeline(0);
+    $('#live-transcript').classList.remove('hidden');
+    $('#transcript-status').textContent = 'Transcribing…';
+    $('#live-transcript-text').textContent = 'VoiceQA is listening to the recording.';
+
+    const transcriptionResponse = await authFetch('/api/transcribe', { method: 'POST', body: data });
+    const transcription = await transcriptionResponse.json();
+    if (!transcriptionResponse.ok) throw new Error(transcription.error || 'Transcription failed.');
+    $('#live-transcript-text').textContent = transcription.transcript;
+    $('#transcript-status').textContent = 'Transcript ready';
+    setPipeline(1);
+    setMessage('Transcript ready. Translating and applying the QA rubric…');
+
+    const timers = [setTimeout(() => setPipeline(2), 1200), setTimeout(() => setPipeline(3), 3500)];
+    const response = await requestEvaluationWithRateLimitRetry(transcription.transcript);
+    timers.forEach(clearTimeout);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Evaluation failed.');
     latestEvaluation = payload;
     renderResults(payload);
-    setPipeline(1);
-    setMessage('Scorecard ready. Review and edit the scores before saving.');
+    setPipeline(4);
+    setMessage('Evaluation complete. Review the evidence before saving.');
   } catch (error) {
     setPipeline(0);
-    setMessage(error.message || 'The scorecard could not be completed. Click Grade scorecard to try again.', true);
-  } finally { setGradeBusy(false); }
+    setMessage(error.message, true);
+  } finally { setBusy(false); }
 }
 
 async function requestEvaluationWithRateLimitRetry(transcript) {
-  return requestWithRateLimitRetry('/api/evaluate', { transcript }, 'Scorecard grading');
-}
-
-async function requestWithRateLimitRetry(url, body, activity) {
   const options = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ transcript })
   };
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const response = await authFetch(url, options);
+    const response = await authFetch('/api/evaluate', options);
     if (response.status !== 429 || attempt === 2) return response;
     const payload = await response.json().catch(() => ({}));
     const waitSeconds = Math.min(Math.max(Number(payload.retryAfter) || 30, 1), 60);
-    await waitForRateLimit(waitSeconds, activity);
+    await waitForRateLimit(waitSeconds);
   }
 }
 
-async function waitForRateLimit(seconds, activity = 'Processing') {
+async function waitForRateLimit(seconds) {
   for (let remaining = seconds; remaining > 0; remaining -= 1) {
-    setMessage(`${activity} is paused while the free allowance resets. Retrying in ${remaining} second${remaining === 1 ? '' : 's'}…`);
+    setMessage(`Groq's free allowance is resetting. Retrying automatically in ${remaining} second${remaining === 1 ? '' : 's'}…`);
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
-  setMessage(`Retrying ${activity.toLowerCase()} now…`);
+  setMessage('Retrying the evaluation now…');
 }
 
-function setGradeBusy(busy) {
-  $('#grade-button').disabled = busy || !selectedFile;
-  $('#grade-button span').textContent = busy ? 'Grading scorecard…' : 'Grade scorecard';
+function setBusy(busy) {
+  $('#evaluate-button').disabled = busy;
+  $('#evaluate-button span').textContent = busy ? 'Evaluating recording…' : 'Start evaluation';
 }
-function setPipeline(index) { const items = $$('.pipeline li'); items.forEach((item, i) => { item.classList.toggle('done', i < index); item.classList.toggle('current', i === index && index < items.length); item.querySelector('span').textContent = i < index ? '✓' : String(i + 1); }); }
+function setPipeline(index) { $$('.pipeline li').forEach((item, i) => { item.classList.toggle('done', i < index); item.classList.toggle('current', i === index && index < 4); item.querySelector('span').textContent = i < index ? '✓' : String(i + 1); }); }
 function setMessage(message, error = false) { $('#form-message').textContent = message; $('#form-message').style.color = error ? 'var(--red)' : ''; }
 
 function renderResults(evaluation) {
@@ -265,6 +240,9 @@ function renderResults(evaluation) {
   renderScoreSections(evaluation.sections);
   $('#result-summary').textContent = evaluation.summary;
   $('#detected-language').textContent = evaluation.detected_language || 'English';
+  const speakerTranscript = formatSpeakerTranscript(evaluation.english_transcript || evaluation.transcript);
+  $('#live-transcript-text').textContent = speakerTranscript;
+  $('#transcript-status').textContent = 'Speaker labels ready';
   $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -306,7 +284,7 @@ $('#section-results').addEventListener('change', event => {
 
 $('#save-button').addEventListener('click', async () => {
   if (!latestEvaluation) return;
-  const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: currentUser?.app_metadata?.voiceqa_user_id || 'VoiceQA owner', detected_language: latestEvaluation.detected_language, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
+  const body = { agent: $('#agent').value.trim(), campaign: $('#campaign').value.trim(), transaction_id: $('#transaction').value.trim(), evaluator: currentUser?.app_metadata?.voiceqa_user_id || 'VoiceQA owner', detected_language: latestEvaluation.detected_language, original_transcript: latestEvaluation.transcript, english_transcript: latestEvaluation.english_transcript, score: latestEvaluation.score, max_score: latestEvaluation.max, percentage: latestEvaluation.percentage, status: latestEvaluation.percentage >= 85 ? 'completed' : 'review_required', summary: latestEvaluation.summary, results: latestEvaluation.sections };
   const response = await authFetch('/api/evaluations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) { const payload = await response.json().catch(() => ({})); return setMessage(payload.error || 'Could not save the evaluation.', true); }
   $('#save-button').textContent = 'Saved ✓';
@@ -316,7 +294,6 @@ $('#save-button').addEventListener('click', async () => {
 
 function resetEvaluation() {
   latestEvaluation = null;
-  currentTranscript = '';
   $('#audio-input').value = '';
   selectFile(null);
   $('#agent').value = '';
@@ -397,10 +374,11 @@ $('#help-close').addEventListener('click', () => $('#help-dialog').close());
 
 function formatBytes(bytes) { return `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
 function formatPercentage(value) { const number = Number(value); return Number.isFinite(number) ? `${Number(number.toFixed(2))}%` : '—'; }
+function formatSpeakerTranscript(value = '') { return String(value).trim().replace(/\n+\s*(?=(?:Agent|Caller)\s*-\s*)/g, '\n\n'); }
 function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 
 if (document.modelContext?.registerTool) {
-  document.modelContext.registerTool({ name: 'start_voice_qa_evaluation', title: 'Grade voice QA scorecard', description: 'Grade the recording currently selected in the visible VoiceQA dashboard.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: async () => { if (!selectedFile) throw new Error('Select a recording first.'); await gradeScorecard(); return { score: latestEvaluation?.score, max: latestEvaluation?.max, percentage: latestEvaluation?.percentage }; } });
+  document.modelContext.registerTool({ name: 'start_voice_qa_evaluation', title: 'Start voice QA evaluation', description: 'Start evaluating the recording currently selected in the visible VoiceQA dashboard.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: async () => { if (!selectedFile) throw new Error('Select a recording first.'); await evaluate(); return { score: latestEvaluation?.score, max: latestEvaluation?.max, percentage: latestEvaluation?.percentage }; } });
 }
 
 console.info(`VoiceQA rubric loaded: ${flatRubric.length} checks, ${fullMaxScore} points.`);
