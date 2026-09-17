@@ -220,8 +220,14 @@ async function transcribeRecording() {
     }
     currentTranscript = transcripts.join('\n\n');
     if (!currentTranscript) throw new Error('No speech was detected in the recording.');
+    $('#transcript-status').textContent = 'Identifying Agent and Caller…';
     $('#live-transcript-text').textContent = currentTranscript;
-    $('#transcript-status').textContent = 'Transcript ready';
+    const speakerResponse = await requestWithRateLimitRetry('/api/speakers', { transcript: currentTranscript }, 'Speaker identification');
+    const speakerPayload = await readApiResponse(speakerResponse);
+    if (!speakerResponse.ok) throw new Error(speakerPayload.error || 'Could not identify Agent and Caller.');
+    currentTranscript = formatSpeakerTranscript(speakerPayload.transcript);
+    $('#live-transcript-text').textContent = currentTranscript;
+    $('#transcript-status').textContent = 'Agent and Caller identified';
     setPipeline(1);
     $('#transcribe-button span').textContent = 'Transcribe again';
     $('#grade-button').classList.remove('hidden');
@@ -321,26 +327,30 @@ async function gradeScorecard() {
 }
 
 async function requestEvaluationWithRateLimitRetry(transcript) {
+  return requestWithRateLimitRetry('/api/evaluate', { transcript }, 'Scorecard grading');
+}
+
+async function requestWithRateLimitRetry(url, body, activity) {
   const options = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ transcript })
+    body: JSON.stringify(body)
   };
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const response = await authFetch('/api/evaluate', options);
+    const response = await authFetch(url, options);
     if (response.status !== 429 || attempt === 2) return response;
     const payload = await response.json().catch(() => ({}));
     const waitSeconds = Math.min(Math.max(Number(payload.retryAfter) || 30, 1), 60);
-    await waitForRateLimit(waitSeconds);
+    await waitForRateLimit(waitSeconds, activity);
   }
 }
 
-async function waitForRateLimit(seconds) {
+async function waitForRateLimit(seconds, activity = 'Processing') {
   for (let remaining = seconds; remaining > 0; remaining -= 1) {
-    setMessage(`Groq's free allowance is resetting. Retrying automatically in ${remaining} second${remaining === 1 ? '' : 's'}…`);
+    setMessage(`${activity} is paused while the free allowance resets. Retrying in ${remaining} second${remaining === 1 ? '' : 's'}…`);
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
-  setMessage('Retrying the evaluation now…');
+  setMessage(`Retrying ${activity.toLowerCase()} now…`);
 }
 
 function setTranscribeBusy(busy) {
