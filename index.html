@@ -87,14 +87,15 @@
         </section>
 
         <section class="panel process-panel">
-          <div class="panel-head"><div><span class="step-no">03</span><h2>Evaluation pipeline</h2></div><span class="rubric-badge">30 checks · 150 points</span></div>
+          <div class="panel-head"><div><span class="step-no">03</span><h2>Complete evaluation</h2></div><span class="rubric-badge">30 checks · 150 points</span></div>
           <ol class="pipeline">
-            <li class="current"><span>1</span><div><strong>Transcribe recording</strong><small>Capture speakers and dialogue</small></div></li>
-            <li><span>2</span><div><strong>Translate to English</strong><small>Preserve meaning and context</small></div></li>
-            <li><span>3</span><div><strong>Apply QA rubric</strong><small>Score in workbook order</small></div></li>
-            <li><span>4</span><div><strong>Quality review</strong><small>Evidence and comments</small></div></li>
+            <li class="current"><span>1</span><div><strong>Create transcript</strong><small>Complete this first and review the text</small></div></li>
+            <li><span>2</span><div><strong>Grade scorecard</strong><small>Apply all 30 QA checks</small></div></li>
           </ol>
-          <button id="evaluate-button" class="primary-button" disabled><span>Start evaluation</span><b>→</b></button>
+          <div class="action-stack">
+            <button id="transcribe-button" class="primary-button" disabled><span>Transcribe recording</span><b>→</b></button>
+            <button id="grade-button" class="primary-button grade-button hidden" disabled><span>Grade scorecard</span><b>→</b></button>
+          </div>
           <p id="form-message" class="form-message">Add a recording to continue.</p>
         </section>
       </div>
