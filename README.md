@@ -17,6 +17,8 @@ The visible scorecard shows only each rubric question and its editable score. AI
 
 Evaluation history displays both the points score and the saved QA percentage.
 
+The header includes a light/dark mode switch. The selected appearance is remembered on the device.
+
 VoiceQA requests a marker-based plain-text evaluation, parses and validates all 30 rubric IDs itself, and retries once only when the returned content is incomplete. This avoids provider-side JSON validation failures on longer calls.
 
 When Groq's free tokens-per-minute allowance is temporarily exhausted, the dashboard shows a countdown and retries the evaluation automatically after the provider's reset time.
